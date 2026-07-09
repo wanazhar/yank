@@ -1,0 +1,550 @@
+"""Download manager using yt-dlp YoutubeDL with progress hooks."""
+
+from __future__ import annotations
+
+import threading
+import time
+import uuid
+from dataclasses import dataclass, field
+from enum import Enum
+from pathlib import Path
+from typing import Any, Callable
+
+from yank.engine.formats import FormatInfo, VideoMeta, format_selector_for
+from yank.models.config import AppConfig
+
+
+class DownloadStatus(str, Enum):
+    PENDING = "pending"
+    QUEUED = "queued"
+    DOWNLOADING = "downloading"
+    PAUSED = "paused"
+    COMPLETED = "completed"
+    ERROR = "error"
+    CANCELLED = "cancelled"
+
+
+@dataclass
+class DownloadProgress:
+    """Live progress snapshot for one download."""
+
+    percent: float = 0.0
+    speed: float = 0.0  # bytes/sec
+    eta: float | None = None  # seconds
+    downloaded_bytes: int = 0
+    total_bytes: int | None = None
+    filename: str = ""
+    status_text: str = ""
+
+    @property
+    def speed_display(self) -> str:
+        if self.speed <= 0:
+            return "—"
+        return _human_rate(self.speed)
+
+    @property
+    def eta_display(self) -> str:
+        if self.eta is None or self.eta < 0:
+            return "—"
+        total = int(self.eta)
+        h, rem = divmod(total, 3600)
+        m, s = divmod(rem, 60)
+        if h:
+            return f"{h}h{m:02d}m"
+        if m:
+            return f"{m}m{s:02d}s"
+        return f"{s}s"
+
+    @property
+    def percent_display(self) -> str:
+        return f"{self.percent:.1f}%"
+
+    @property
+    def speed_mbps(self) -> float | None:
+        """Speed in MB/s for color coding."""
+        if self.speed <= 0:
+            return None
+        return self.speed / (1024 * 1024)
+
+
+@dataclass
+class DownloadOptions:
+    """Per-download options chosen on the options screen."""
+
+    output_dir: str = ""
+    filename_template: str = "%(title)s.%(ext)s"
+    format_selector: str = "best"
+    download_thumbnail: bool = False
+    embed_metadata: bool = True
+    embed_subtitles: bool = False
+    subtitle_langs: list[str] = field(default_factory=list)
+    extract_audio: bool = False
+    audio_format: str = "mp3"
+    custom_format: str | None = None
+
+
+@dataclass
+class DownloadItem:
+    """One download job."""
+
+    id: str
+    url: str
+    title: str
+    format_id: str
+    options: DownloadOptions
+    status: DownloadStatus = DownloadStatus.PENDING
+    progress: DownloadProgress = field(default_factory=DownloadProgress)
+    error: str = ""
+    file_path: str = ""
+    meta: VideoMeta | None = None
+    selected_format: FormatInfo | None = None
+    created_at: float = field(default_factory=time.time)
+
+    @classmethod
+    def create(
+        cls,
+        url: str,
+        title: str,
+        format_id: str,
+        options: DownloadOptions,
+        *,
+        meta: VideoMeta | None = None,
+        selected_format: FormatInfo | None = None,
+    ) -> DownloadItem:
+        return cls(
+            id=uuid.uuid4().hex[:12],
+            url=url,
+            title=title or "Unknown",
+            format_id=format_id,
+            options=options,
+            meta=meta,
+            selected_format=selected_format,
+        )
+
+
+ProgressCallback = Callable[[DownloadItem], None]
+FinishedCallback = Callable[[DownloadItem], None]
+
+
+class DownloadManager:
+    """
+    Manages concurrent yt-dlp downloads with progress hooks.
+
+    Pause is cooperative (cancel + mark paused for re-queue).
+    Cancel aborts the active download.
+    """
+
+    def __init__(
+        self,
+        config: AppConfig,
+        *,
+        on_progress: ProgressCallback | None = None,
+        on_finished: FinishedCallback | None = None,
+    ) -> None:
+        self.config = config
+        self.on_progress = on_progress
+        self.on_finished = on_finished
+        self._items: dict[str, DownloadItem] = {}
+        self._lock = threading.Lock()
+        self._cancel_flags: dict[str, threading.Event] = {}
+        self._threads: dict[str, threading.Thread] = {}
+        self._active_count = 0
+        self._ydl_instances: dict[str, Any] = {}
+
+    # ── Query ───────────────────────────────────────────────────────────────
+
+    def get(self, item_id: str) -> DownloadItem | None:
+        with self._lock:
+            return self._items.get(item_id)
+
+    def all_items(self) -> list[DownloadItem]:
+        with self._lock:
+            return list(self._items.values())
+
+    def active_count(self) -> int:
+        with self._lock:
+            return sum(
+                1
+                for i in self._items.values()
+                if i.status == DownloadStatus.DOWNLOADING
+            )
+
+    def register(self, item: DownloadItem) -> DownloadItem:
+        with self._lock:
+            self._items[item.id] = item
+            self._cancel_flags[item.id] = threading.Event()
+        return item
+
+    # ── Control ─────────────────────────────────────────────────────────────
+
+    def start(self, item_id: str) -> None:
+        """Start (or resume) a download in a background thread."""
+        item = self.get(item_id)
+        if item is None:
+            return
+        if item.status == DownloadStatus.DOWNLOADING:
+            return
+
+        # Enforce concurrency limit
+        if self.active_count() >= self.config.max_concurrent:
+            item.status = DownloadStatus.QUEUED
+            self._notify_progress(item)
+            return
+
+        # Thread-safe access to cancel_flags
+        with self._lock:
+            cancel_flag = self._cancel_flags.setdefault(item_id, threading.Event())
+        cancel_flag.clear()
+        item.status = DownloadStatus.DOWNLOADING
+        item.error = ""
+        self._notify_progress(item)
+
+        t = threading.Thread(
+            target=self._run_download,
+            args=(item_id,),
+            name=f"yank-dl-{item_id}",
+            daemon=True,
+        )
+        with self._lock:
+            self._threads[item_id] = t
+        t.start()
+
+    def cancel(self, item_id: str) -> None:
+        item = self.get(item_id)
+        if item is None:
+            return
+        flag = self._cancel_flags.get(item_id)
+        if flag:
+            flag.set()
+        # Try to abort YoutubeDL (with lock for thread safety)
+        with self._lock:
+            ydl = self._ydl_instances.get(item_id)
+        if ydl is not None:
+            try:
+                # yt-dlp doesn't have a clean cancel; raising via hook works
+                pass
+            except Exception:
+                pass
+        if item.status in (
+            DownloadStatus.DOWNLOADING,
+            DownloadStatus.QUEUED,
+            DownloadStatus.PENDING,
+            DownloadStatus.PAUSED,
+        ):
+            item.status = DownloadStatus.CANCELLED
+            item.progress.status_text = "Cancelled"
+            self._notify_progress(item)
+            self._notify_finished(item)
+            self._pump_queue()
+
+    def pause(self, item_id: str) -> None:
+        """Cooperative pause: cancel current transfer, mark as paused."""
+        item = self.get(item_id)
+        if item is None:
+            return
+        if item.status != DownloadStatus.DOWNLOADING:
+            if item.status == DownloadStatus.QUEUED:
+                item.status = DownloadStatus.PAUSED
+                self._notify_progress(item)
+            return
+        # Thread-safe access to cancel_flags
+        with self._lock:
+            flag = self._cancel_flags.get(item_id)
+        if flag:
+            flag.set()
+        item.status = DownloadStatus.PAUSED
+        item.progress.status_text = "Paused"
+        self._notify_progress(item)
+        self._pump_queue()
+
+    def start_queued(self) -> None:
+        """Start as many queued items as concurrency allows."""
+        self._pump_queue()
+
+    def pause_all(self) -> None:
+        for item in self.all_items():
+            if item.status in (DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED):
+                self.pause(item.id)
+
+    def cancel_all(self) -> None:
+        for item in self.all_items():
+            if item.status not in (
+                DownloadStatus.COMPLETED,
+                DownloadStatus.CANCELLED,
+                DownloadStatus.ERROR,
+            ):
+                self.cancel(item.id)
+
+    # ── Internals ───────────────────────────────────────────────────────────
+
+    def _pump_queue(self) -> None:
+        """Start queued items up to max_concurrent."""
+        with self._lock:
+            active = sum(
+                1
+                for i in self._items.values()
+                if i.status == DownloadStatus.DOWNLOADING
+            )
+            slots = max(0, self.config.max_concurrent - active)
+            queued = [
+                i
+                for i in self._items.values()
+                if i.status == DownloadStatus.QUEUED
+            ]
+            queued.sort(key=lambda x: x.created_at)
+            to_start = [i.id for i in queued[:slots]]
+
+        for item_id in to_start:
+            self.start(item_id)
+
+    def _run_download(self, item_id: str) -> None:
+        item = self.get(item_id)
+        if item is None:
+            return
+
+        # Get cancel flag once (threading.Event is thread-safe for check/set)
+        cancel_flag = self._cancel_flags.get(item_id)
+        if cancel_flag is None:
+            return
+        opts = item.options
+        out_dir = Path(opts.output_dir or self.config.download_dir).expanduser()
+        try:
+            out_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            item.status = DownloadStatus.ERROR
+            item.error = f"Cannot create download directory: {exc}"
+            self._notify_progress(item)
+            self._notify_finished(item)
+            self._pump_queue()
+            return
+
+        fmt_selector = opts.format_selector
+        if opts.custom_format:
+            fmt_selector = opts.custom_format
+        elif item.selected_format:
+            fmt_selector = format_selector_for(
+                item.selected_format,
+                audio_only=opts.extract_audio,
+                custom=opts.custom_format,
+            )
+
+        outtmpl = str(out_dir / (opts.filename_template or "%(title)s.%(ext)s"))
+
+        ydl_opts: dict[str, Any] = {
+            "format": fmt_selector,
+            "outtmpl": outtmpl,
+            "quiet": True,
+            "no_warnings": True,
+            "noprogress": True,
+            "progress_hooks": [lambda d: self._progress_hook(item_id, d, cancel_flag)],
+            "noplaylist": True,
+        }
+
+        postprocessors: list[dict[str, Any]] = []
+
+        if opts.extract_audio:
+            ydl_opts["format"] = (
+                opts.custom_format
+                or (item.selected_format.format_id if item.selected_format else "bestaudio/best")
+            )
+            postprocessors.append(
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": opts.audio_format or "mp3",
+                    "preferredquality": "192",
+                }
+            )
+
+        if opts.embed_metadata:
+            postprocessors.append({"key": "FFmpegMetadata", "add_metadata": True})
+
+        if opts.download_thumbnail:
+            ydl_opts["writethumbnail"] = True
+            postprocessors.append({"key": "EmbedThumbnail", "already_have_thumbnail": False})
+
+        if opts.embed_subtitles and opts.subtitle_langs:
+            ydl_opts["writesubtitles"] = True
+            ydl_opts["subtitleslangs"] = opts.subtitle_langs
+            postprocessors.append({"key": "FFmpegEmbedSubtitle"})
+        elif opts.embed_subtitles:
+            ydl_opts["writesubtitles"] = True
+            ydl_opts["subtitleslangs"] = ["en"]
+            postprocessors.append({"key": "FFmpegEmbedSubtitle"})
+
+        if postprocessors:
+            ydl_opts["postprocessors"] = postprocessors
+
+        try:
+            import yt_dlp
+        except ImportError:
+            item.status = DownloadStatus.ERROR
+            item.error = "yt-dlp is not installed."
+            self._notify_progress(item)
+            self._notify_finished(item)
+            self._pump_queue()
+            return
+
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                self._ydl_instances[item_id] = ydl
+                if cancel_flag.is_set():
+                    # Was cancelled before start
+                    if item.status != DownloadStatus.PAUSED:
+                        item.status = DownloadStatus.CANCELLED
+                    return
+                info = ydl.extract_info(item.url, download=True)
+                if cancel_flag.is_set():
+                    if item.status == DownloadStatus.PAUSED:
+                        return
+                    item.status = DownloadStatus.CANCELLED
+                    item.progress.status_text = "Cancelled"
+                    return
+
+                # Resolve final filepath
+                file_path = ""
+                if info:
+                    if info.get("requested_downloads"):
+                        file_path = info["requested_downloads"][0].get("filepath", "")
+                    file_path = file_path or info.get("_filename") or info.get("filename") or ""
+                    if not file_path and info.get("title"):
+                        # Best-effort
+                        ext = info.get("ext") or "mp4"
+                        file_path = str(out_dir / f"{info['title']}.{ext}")
+
+                item.file_path = file_path or item.progress.filename
+                item.status = DownloadStatus.COMPLETED
+                item.progress.percent = 100.0
+                item.progress.status_text = "Done"
+                item.title = (info or {}).get("title") or item.title
+        except _CancelDownload:
+            if item.status != DownloadStatus.PAUSED:
+                item.status = DownloadStatus.CANCELLED
+                item.progress.status_text = "Cancelled"
+        except Exception as exc:
+            if item.status == DownloadStatus.PAUSED:
+                return
+            if cancel_flag.is_set():
+                item.status = DownloadStatus.CANCELLED
+                item.progress.status_text = "Cancelled"
+            else:
+                item.status = DownloadStatus.ERROR
+                item.error = _humanize_download_error(str(exc))
+                item.progress.status_text = "Error"
+        finally:
+            self._ydl_instances.pop(item_id, None)
+            self._notify_progress(item)
+            # Avoid double-notify: cancel() already calls _notify_finished and
+            # _pump_queue when cancelling a DOWNLOADING item, and pause()
+            # should not trigger _notify_finished at all.
+            if item.status not in (DownloadStatus.PAUSED, DownloadStatus.CANCELLED):
+                self._notify_finished(item)
+                self._pump_queue()
+
+    def _progress_hook(
+        self,
+        item_id: str,
+        d: dict[str, Any],
+        cancel_flag: threading.Event,
+    ) -> None:
+        if cancel_flag.is_set():
+            raise _CancelDownload()
+
+        item = self.get(item_id)
+        if item is None:
+            raise _CancelDownload()
+
+        status = d.get("status")
+        if status == "downloading":
+            total = d.get("total_bytes") or d.get("total_bytes_estimate")
+            downloaded = d.get("downloaded_bytes") or 0
+            speed = d.get("speed") or 0
+            eta = d.get("eta")
+            percent = 0.0
+            if total and total > 0:
+                percent = (downloaded / total) * 100.0
+            elif d.get("_percent_str"):
+                try:
+                    percent = float(str(d["_percent_str"]).replace("%", "").strip())
+                except ValueError:
+                    percent = item.progress.percent
+
+            filename = d.get("filename") or d.get("tmpfilename") or ""
+            item.progress = DownloadProgress(
+                percent=percent,
+                speed=float(speed or 0),
+                eta=float(eta) if eta is not None else None,
+                downloaded_bytes=int(downloaded),
+                total_bytes=int(total) if total else None,
+                filename=str(filename),
+                status_text="Downloading",
+            )
+            if filename:
+                item.file_path = str(filename)
+            self._notify_progress(item)
+
+        elif status == "finished":
+            filename = d.get("filename") or ""
+            item.progress.percent = 100.0
+            item.progress.speed = 0
+            item.progress.eta = 0
+            item.progress.status_text = "Processing"
+            if filename:
+                item.progress.filename = str(filename)
+                item.file_path = str(filename)
+            self._notify_progress(item)
+
+        elif status == "error":
+            item.status = DownloadStatus.ERROR
+            item.error = "Download failed."
+            item.progress.status_text = "Error"
+            self._notify_progress(item)
+
+    def _notify_progress(self, item: DownloadItem) -> None:
+        if self.on_progress:
+            try:
+                self.on_progress(item)
+            except Exception:
+                pass
+
+    def _notify_finished(self, item: DownloadItem) -> None:
+        if self.on_finished:
+            try:
+                self.on_finished(item)
+            except Exception:
+                pass
+
+
+class _CancelDownload(Exception):
+    """Raised from progress hook to abort a download."""
+
+
+def _human_rate(bps: float) -> str:
+    if bps < 1024:
+        return f"{bps:.0f} B/s"
+    for unit in ("KiB/s", "MiB/s", "GiB/s"):
+        bps /= 1024.0
+        if bps < 1024:
+            return f"{bps:.1f} {unit}"
+    return f"{bps:.1f} TiB/s"
+
+
+def _humanize_download_error(raw: str) -> str:
+    lower = raw.lower()
+    if "no space" in lower or "disk quota" in lower or "errno 28" in lower:
+        return "Disk full — free up space and try again."
+    if "permission denied" in lower or "errno 13" in lower:
+        return "Permission denied writing to the download directory."
+    if "ffmpeg" in lower and ("not found" in lower or "not installed" in lower):
+        return "ffmpeg is required for this format/option but was not found."
+    if "timed out" in lower or "timeout" in lower:
+        return "Download timed out. Check your connection."
+    if "http error 403" in lower:
+        return "Access forbidden while downloading."
+    if "http error 404" in lower:
+        return "File not found on server."
+    # First line, strip ERROR:
+    line = raw.splitlines()[0] if raw else "Download failed."
+    line = line.replace("ERROR:", "").strip()
+    if len(line) > 200:
+        line = line[:197] + "..."
+    return line or "Download failed."
