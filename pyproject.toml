@@ -38,7 +38,9 @@ dev = [
 yank = "yank.__main__:main"
 
 [project.urls]
-Homepage = "https://github.com/yank-tui/yank"
+Homepage = "https://github.com/wanazhar/yank"
+Source = "https://github.com/wanazhar/yank"
+BugTracker = "https://github.com/wanazhar/yank/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
