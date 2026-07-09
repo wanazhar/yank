@@ -42,10 +42,10 @@
 ### Quick install (recommended)
 
 ```bash
-pipx install yank
+pipx install yank-tui
 ```
 
-### From source
+Or from source:
 
 ```bash
 git clone https://github.com/wanazhar/yank.git
