@@ -218,8 +218,10 @@ class SettingsScreen(Screen):
             conc = self.query_one("#set-concurrent", Select).value
             if conc and conc != Select.BLANK:
                 cfg.max_concurrent = int(str(conc))
-        except Exception:
-            pass
+        except ValueError:
+            status.add_class("error")
+            status.update("Invalid concurrency value — must be a number.")
+            return
 
         try:
             ui = self.query_one("#set-update-interval", Select).value
@@ -240,6 +242,7 @@ class SettingsScreen(Screen):
         self.app.config = cfg  # type: ignore[attr-defined]
         self.app.manager.config = cfg  # type: ignore[attr-defined]
         self.app.queue.config = cfg  # type: ignore[attr-defined]
+        self.app.ytdlp.config = cfg  # type: ignore[attr-defined]
         self.app.refresh_status_bar()  # type: ignore[attr-defined]
         status.update("Settings saved.")
         self.notify("Settings saved.", severity="information")

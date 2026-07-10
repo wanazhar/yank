@@ -326,6 +326,12 @@ class DownloadManager:
         with self._lock:
             cancel_flag = self._cancel_flags.get(item_id)
         if cancel_flag is None:
+            with self._lock:
+                item.status = DownloadStatus.ERROR
+                item.error = "Internal error: download state lost."
+            self._notify_progress(item)
+            self._notify_finished(item)
+            self._pump_queue()
             return
 
         opts = item.options

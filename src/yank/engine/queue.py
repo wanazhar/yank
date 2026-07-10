@@ -191,7 +191,7 @@ class QueueEngine:
                             custom_format=_coerce_optional_str(data.get("custom_format")),
                             error=str(data.get("error", "")),
                             file_path=str(data.get("file_path", "")),
-                            created_at=float(data.get("created_at") or time.time()),
+                            created_at=float(data.get("created_at")) if data.get("created_at") is not None else time.time(),
                             order=int(data.get("order", i)),
                         )
                         # Skip completed/cancelled on restore? Keep them briefly
@@ -302,9 +302,8 @@ class QueueEngine:
                 DownloadStatus.PAUSED,
                 DownloadStatus.QUEUED,
             ):
-                di.status = DownloadStatus.QUEUED
-                self.sync_from_manager(di)
                 self.manager.start(item_id)
+                self.sync_from_manager(di)
         self._emit()
 
     def pause_all(self) -> None:
