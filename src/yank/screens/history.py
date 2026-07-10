@@ -108,12 +108,10 @@ class HistoryScreen(Screen):
 
     def refresh_table(self, query: str = "") -> None:
         store = self.app.history  # type: ignore[attr-defined]
-        store.load()
         if query.strip():
             entries = store.search(query)
         else:
             entries = store.to_list()
-        self._entries = entries
         table = self.query_one("#hist-table", DataTable)
         table.clear()
         for e in entries:

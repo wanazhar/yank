@@ -101,11 +101,16 @@ class QueueScreen(Screen):
         table = self.query_one("#q-table", DataTable)
         table.add_columns("#", "Title", "Status", "Format", "URL")
         self.refresh_table()
-        self.set_interval(0.5, self.refresh_table)
+        self.set_interval(0.5, self._tick_refresh)
         table.focus()
 
     def on_screen_resume(self) -> None:
         self.refresh_table()
+
+    def _tick_refresh(self) -> None:
+        """Refresh table only when this screen is visible."""
+        if self.app.screen is self:
+            self.refresh_table()
 
     def refresh_table(self) -> None:
         queue = self.app.queue  # type: ignore[attr-defined]
