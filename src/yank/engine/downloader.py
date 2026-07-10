@@ -183,21 +183,39 @@ class DownloadManager:
         item = self.get(item_id)
         if item is None:
             return
-        if item.status == DownloadStatus.DOWNLOADING:
-            return
 
-        # Enforce concurrency limit
-        if self.active_count() >= self.config.max_concurrent:
-            item.status = DownloadStatus.QUEUED
+        with self._lock:
+            # Guard: don't restart terminal items
+            if item.status in (
+                DownloadStatus.CANCELLED,
+                DownloadStatus.COMPLETED,
+                DownloadStatus.ERROR,
+            ):
+                return
+            if item.status == DownloadStatus.DOWNLOADING:
+                return
+
+            # Enforce concurrency limit (inline — lock already held)
+            active = sum(
+                1 for i in self._items.values()
+                if i.status == DownloadStatus.DOWNLOADING
+            )
+            if active >= self.config.max_concurrent:
+                item.status = DownloadStatus.QUEUED
+                queued = True
+            else:
+                cancel_flag = self._cancel_flags.setdefault(
+                    item_id, threading.Event()
+                )
+                cancel_flag.clear()
+                item.status = DownloadStatus.DOWNLOADING
+                item.error = ""
+                queued = False
+
+        if queued:
             self._notify_progress(item)
             return
 
-        # Thread-safe access to cancel_flags
-        with self._lock:
-            cancel_flag = self._cancel_flags.setdefault(item_id, threading.Event())
-            cancel_flag.clear()
-        item.status = DownloadStatus.DOWNLOADING
-        item.error = ""
         self._notify_progress(item)
 
         t = threading.Thread(
@@ -210,7 +228,7 @@ class DownloadManager:
             self._threads[item_id] = t
         t.start()
 
-    def cancel(self, item_id: str) -> None:
+    def cancel(self, item_id: str, *, _pump: bool = True) -> None:
         item = self.get(item_id)
         if item is None:
             return
@@ -218,8 +236,6 @@ class DownloadManager:
             flag = self._cancel_flags.get(item_id)
             if flag:
                 flag.set()
-            # Try to abort YoutubeDL
-            ydl = self._ydl_instances.get(item_id)
             if item.status in (
                 DownloadStatus.DOWNLOADING,
                 DownloadStatus.QUEUED,
@@ -231,19 +247,18 @@ class DownloadManager:
                 cancelled = True
             else:
                 cancelled = False
-        # yt-dlp doesn't have a clean cancel; raising via hook works
         if cancelled:
             self._notify_progress(item)
             self._notify_finished(item)
-            self._pump_queue()
-
-    def pause(self, item_id: str) -> None:
+            if _pump:
+                self._pump_queue()
+    def pause(self, item_id: str, *, _pump: bool = True) -> None:
         """Cooperative pause: cancel current transfer, mark as paused."""
         item = self.get(item_id)
         if item is None:
             return
         notify = False
-        pump = False
+        should_pump = False
         with self._lock:
             if item.status != DownloadStatus.DOWNLOADING:
                 if item.status == DownloadStatus.QUEUED:
@@ -256,10 +271,10 @@ class DownloadManager:
             item.status = DownloadStatus.PAUSED
             item.progress.status_text = "Paused"
             notify = True
-            pump = True
+            should_pump = True
         if notify:
             self._notify_progress(item)
-        if pump:
+        if should_pump and _pump:
             self._pump_queue()
 
     def start_queued(self) -> None:
@@ -269,7 +284,7 @@ class DownloadManager:
     def pause_all(self) -> None:
         for item in self.all_items():
             if item.status in (DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED):
-                self.pause(item.id)
+                self.pause(item.id, _pump=False)
 
     def cancel_all(self) -> None:
         for item in self.all_items():
@@ -278,7 +293,8 @@ class DownloadManager:
                 DownloadStatus.CANCELLED,
                 DownloadStatus.ERROR,
             ):
-                self.cancel(item.id)
+                self.cancel(item.id, _pump=False)
+        self._pump_queue()
 
     # ── Internals ───────────────────────────────────────────────────────────
 

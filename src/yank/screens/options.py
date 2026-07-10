@@ -237,6 +237,9 @@ class OptionsScreen(Screen):
             pass
 
     def _build_options(self) -> DownloadOptions | None:
+        if self.selected_format is None:
+            self.query_one("#opt-error", Label).update("No format selected.")
+            return None
         cfg = self.app.config  # type: ignore[attr-defined]
         outdir = self.query_one("#opt-outdir", Input).value.strip()
         if not outdir:
@@ -398,8 +401,9 @@ class OptionsScreen(Screen):
                     self.notify, f"Batch skip: {exc.message}", severity="warning"
                 )
             except Exception as exc:
+                from yank.engine.formats import _humanize_ytdlp_error
                 self.app.call_from_thread(
-                    self.notify, f"Batch skip: {url[:40]} - {exc}", severity="warning"
+                    self.notify, f"Batch skip: {_humanize_ytdlp_error(str(exc))}", severity="warning"
                 )
 
     def action_go_back(self) -> None:

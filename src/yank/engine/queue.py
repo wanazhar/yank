@@ -18,6 +18,26 @@ from yank.engine.downloader import (
 )
 from yank.models.config import AppConfig
 
+
+
+def _coerce_str_list(value: Any) -> list[str]:
+    """Coerce a value to list[str] for safe deserialization."""
+    if isinstance(value, list):
+        return [str(v) for v in value]
+    if isinstance(value, str):
+        return [value]
+    return []
+
+
+def _coerce_optional_str(value: Any) -> str | None:
+    """Coerce a value to str | None for safe deserialization."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
 DATA_DIR = Path.home() / ".local" / "share" / "yank"
 QUEUE_PATH = DATA_DIR / "queue.json"
 
@@ -165,10 +185,10 @@ class QueueEngine:
                             download_thumbnail=bool(data.get("download_thumbnail", False)),
                             embed_metadata=bool(data.get("embed_metadata", True)),
                             embed_subtitles=bool(data.get("embed_subtitles", False)),
-                            subtitle_langs=list(data.get("subtitle_langs") or []),
+                            subtitle_langs=_coerce_str_list(data.get("subtitle_langs")),
                             extract_audio=bool(data.get("extract_audio", False)),
                             audio_format=str(data.get("audio_format", "mp3")),
-                            custom_format=data.get("custom_format"),
+                            custom_format=_coerce_optional_str(data.get("custom_format")),
                             error=str(data.get("error", "")),
                             file_path=str(data.get("file_path", "")),
                             created_at=float(data.get("created_at") or time.time()),
