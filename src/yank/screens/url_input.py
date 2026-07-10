@@ -110,7 +110,7 @@ class URLInputScreen(Screen):
     }
     #url-buttons Button {
         margin: 0 1;
-        min-width: 14;
+        width: 20;
     }
     #nav-links {
         margin-top: 1;
@@ -120,7 +120,7 @@ class URLInputScreen(Screen):
     }
     #nav-links Button {
         margin: 0 1;
-        min-width: 12;
+        width: 22;
     }
     """
 
