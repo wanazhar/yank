@@ -255,8 +255,7 @@ class SettingsScreen(Screen):
     def _check_update(self) -> None:
         mgr = self.app.ytdlp  # type: ignore[attr-defined]
         self.app.call_from_thread(
-            self.query_one("#set-ytdlp-msg", Label).update,
-            "Checking…",
+            lambda: self.query_one("#set-ytdlp-msg", Label).update("Checking…")
         )
         result = mgr.check_for_updates(force=True)
 
@@ -284,7 +283,7 @@ class SettingsScreen(Screen):
 
         def status(msg: str) -> None:
             self.app.call_from_thread(
-                self.query_one("#set-ytdlp-msg", Label).update, msg
+                lambda m=msg: self.query_one("#set-ytdlp-msg", Label).update(m)
             )
 
         ok, msg = mgr.update(on_status=status)
@@ -307,7 +306,7 @@ class SettingsScreen(Screen):
 
         def status(msg: str) -> None:
             self.app.call_from_thread(
-                self.query_one("#set-ytdlp-msg", Label).update, msg
+                lambda m=msg: self.query_one("#set-ytdlp-msg", Label).update(m)
             )
 
         ok = mgr.ensure_installed(on_status=status)

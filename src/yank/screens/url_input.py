@@ -260,28 +260,30 @@ class URLInputScreen(Screen):
         from yank.screens.format_select import FormatSelectScreen
 
         self.app.call_from_thread(
-            self.query_one("#url-error", Label).update,
-            f"Fetching formats for {urls[0][:50]}…",
+            lambda: self.query_one("#url-error", Label).update(
+                f"Fetching formats for {urls[0][:50]}…"
+            )
         )
         try:
             meta = extract_formats(urls[0], timeout=30)
             if not meta.formats:
                 self.app.call_from_thread(
-                    self.query_one("#url-error", Label).update,
-                    "No formats available for this video.",
+                    lambda: self.query_one("#url-error", Label).update(
+                        "No formats available for this video."
+                    )
                 )
                 return
         except FormatExtractError as exc:
             self.app.call_from_thread(
-                self.query_one("#url-error", Label).update,
-                exc.message,
+                lambda m=exc.message: self.query_one("#url-error", Label).update(m)
             )
             return
         except Exception as exc:
             from yank.engine.formats import _humanize_ytdlp_error
+
+            msg = _humanize_ytdlp_error(str(exc))
             self.app.call_from_thread(
-                self.query_one("#url-error", Label).update,
-                _humanize_ytdlp_error(str(exc)),
+                lambda m=msg: self.query_one("#url-error", Label).update(m)
             )
             return
 

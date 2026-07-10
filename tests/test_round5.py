@@ -222,3 +222,28 @@ class TestHistoryFilesizeCoercion:
             store.load()
             entries = store.to_list()
             assert entries[0].filesize == 0
+
+
+# ── F3: query_one not called directly from worker-thread callbacks ──────────
+
+
+class TestQueryOneThreadSafety:
+    """F3: call_from_thread uses lambdas, not direct query_one evaluation."""
+
+    def test_url_input_uses_lambda_not_direct_query(self):
+        """Verify _fetch_and_proceed uses lambda wrappers for query_one."""
+        source = Path("src/yank/screens/url_input.py").read_text()
+        # The old pattern: call_from_thread(\n            self.query_one
+        # Should now be: call_from_thread(\n            lambda:
+        bad = "call_from_thread(\n            self.query_one"
+        assert bad not in source, (
+            "Direct query_one found in call_from_thread — should use lambda"
+        )
+
+    def test_settings_uses_lambda_not_direct_query(self):
+        """Verify settings worker methods use lambda wrappers."""
+        source = Path("src/yank/screens/settings.py").read_text()
+        bad = "call_from_thread(\n            self.query_one"
+        assert bad not in source, (
+            "Direct query_one found in call_from_thread in settings.py"
+        )
