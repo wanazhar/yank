@@ -149,7 +149,6 @@ class DownloadManager:
         self._lock = threading.Lock()
         self._cancel_flags: dict[str, threading.Event] = {}
         self._threads: dict[str, threading.Thread] = {}
-        self._active_count = 0
         self._ydl_instances: dict[str, Any] = {}
 
     # ── Query ───────────────────────────────────────────────────────────────

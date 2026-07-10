@@ -52,6 +52,18 @@ class HistoryEntry:
         )
 
 
+
+
+_VALID_HISTORY_STATUSES = frozenset({"success", "error", "cancelled"})
+
+
+def _coerce_history_status(raw: object) -> Status:
+    """Coerce a loaded status value to a valid Status literal."""
+    if isinstance(raw, str) and raw in _VALID_HISTORY_STATUSES:
+        return raw  # type: ignore[return-value]
+    return "error"
+
+
 @dataclass
 class HistoryStore:
     """Thread-safe history store backed by JSON."""
@@ -83,7 +95,7 @@ class HistoryStore:
                                 url=str(item.get("url", "")),
                                 format_id=str(item.get("format_id", "")),
                                 file_path=str(item.get("file_path", "")),
-                                status=item.get("status", "success"),  # type: ignore[arg-type]
+                                status=_coerce_history_status(item.get("status")),
                                 error=str(item.get("error", "")),
                                 filesize=int(item.get("filesize", 0) or 0),
                             )

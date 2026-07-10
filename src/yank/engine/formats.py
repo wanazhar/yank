@@ -192,7 +192,9 @@ def _parse_format(f: dict[str, Any]) -> FormatInfo:
         else:
             resolution = "—"
 
-    filesize = f.get("filesize") or f.get("filesize_approx")
+    filesize = f.get("filesize")
+    if filesize is None:
+        filesize = f.get("filesize_approx")
     if filesize is not None:
         try:
             filesize = int(filesize)
@@ -200,6 +202,7 @@ def _parse_format(f: dict[str, Any]) -> FormatInfo:
             filesize = None
 
     note_parts: list[str] = []
+
     if f.get("format_note"):
         note_parts.append(str(f["format_note"]))
     if f.get("protocol") and f["protocol"] not in ("https", "http"):
