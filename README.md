@@ -1,6 +1,6 @@
 # yank ⬇️
 
-**A beautiful TUI wrapper for yt-dlp.** Paste a URL, pick a format, download. No flags to remember.
+**yank the web.** Paste a URL, pick a format, download. No flags to remember.
 
 ```
                       __
@@ -10,7 +10,7 @@
  \__, /\__,_/_/ /_/_/|_|
 /____/
 
-         yt-dlp TUI wrapper
+         yank the web
 
     Paste a video URL · or multiple URLs (one per line) for batch
 

@@ -131,7 +131,7 @@ class URLInputScreen(Screen):
                 # Generate ASCII art logo using pyfiglet
                 logo_text = pyfiglet.figlet_format("yank", font="slant")
                 yield Static(logo_text, id="ascii-logo")
-                yield Label("yt-dlp TUI wrapper", id="subtitle")
+                yield Label("yank the web", id="subtitle")
             yield Label("Paste a video URL · or multiple URLs (one per line) for batch", id="url-hint")
             yield Input(
                 placeholder="https://…",

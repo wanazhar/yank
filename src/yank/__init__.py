@@ -1,3 +1,3 @@
-"""yank — a TUI wrapper for yt-dlp."""
+"""yank — yank the web."""
 
 __version__ = "0.1.0"

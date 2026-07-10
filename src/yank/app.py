@@ -18,14 +18,14 @@ from yank.widgets.status_bar import StatusBar
 
 class YankApp(App):
     """
-    yank — yt-dlp TUI wrapper.
+    yank — yank the web.
 
     Startup shows URL input immediately. Shared services (config, history,
     download manager, queue, yt-dlp manager) live on the app instance.
     """
 
     TITLE = "yank"
-    SUB_TITLE = "yt-dlp TUI"
+    SUB_TITLE = "yank the web"
     CSS = """
     Screen {
         background: #0a0a0f;
