@@ -131,8 +131,3 @@ def save_config(cfg: AppConfig, path: Path | None = None) -> None:
         _write_toml_manual(data, path)
 
 
-def ensure_download_dir(cfg: AppConfig) -> Path:
-    """Ensure the download directory exists and return it."""
-    d = Path(cfg.download_dir).expanduser()
-    d.mkdir(parents=True, exist_ok=True)
-    return d

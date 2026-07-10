@@ -247,3 +247,16 @@ class TestQueryOneThreadSafety:
         assert bad not in source, (
             "Direct query_one found in call_from_thread in settings.py"
         )
+
+
+# ── G4: ensure_download_dir removed ────────────────────────────────────────
+
+
+class TestEnsureDownloadDirRemoved:
+    """G4: Dead ensure_download_dir function removed."""
+
+    def test_ensure_download_dir_not_present(self):
+        source = Path("src/yank/models/config.py").read_text()
+        assert "ensure_download_dir" not in source, (
+            "ensure_download_dir should be removed (dead code)"
+        )
