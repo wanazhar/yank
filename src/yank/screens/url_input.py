@@ -110,6 +110,7 @@ class URLInputScreen(Screen):
     }
     #url-buttons Button {
         margin: 0 1;
+        min-width: 14;
     }
     #nav-links {
         margin-top: 1;

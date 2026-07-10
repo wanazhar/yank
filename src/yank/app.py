@@ -77,14 +77,6 @@ class YankApp(App):
         max-width: 120;
     }
 
-    /* Section headers */
-    .section-header {
-        text-style: bold;
-        color: #7c3aed;
-        border-bottom: solid #06b6d4;
-        padding: 1 0;
-        margin: 1 0;
-    }
 
     /* Input fields */
     Input {

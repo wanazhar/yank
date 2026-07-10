@@ -53,14 +53,6 @@ class DownloadScreen(Screen):
     #dl-actions Button {
         margin-right: 1;
     }
-    .section-header {
-        text-style: bold;
-        color: #7c3aed;
-        /* text-transform: uppercase; not supported by Textual */
-        border-bottom: solid #06b6d4;
-        padding: 1 0;
-        margin: 1 0;
-    }
     """
 
     def __init__(
