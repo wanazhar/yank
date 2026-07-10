@@ -182,8 +182,9 @@ class HistoryScreen(Screen):
             self.app.call_from_thread(self.notify, exc.message, severity="error")
             return
         except Exception as exc:
+            from yank.engine.formats import _humanize_ytdlp_error
             self.app.call_from_thread(
-                self.notify, f"Failed: {exc}", severity="error"
+                self.notify, _humanize_ytdlp_error(str(exc)), severity="error"
             )
             return
 

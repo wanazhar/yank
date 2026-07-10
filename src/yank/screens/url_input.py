@@ -278,9 +278,10 @@ class URLInputScreen(Screen):
             )
             return
         except Exception as exc:
+            from yank.engine.formats import _humanize_ytdlp_error
             self.app.call_from_thread(
                 self.query_one("#url-error", Label).update,
-                f"Failed to fetch info: {exc}",
+                _humanize_ytdlp_error(str(exc)),
             )
             return
 

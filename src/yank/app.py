@@ -294,6 +294,10 @@ class YankApp(App):
 
     def action_quit(self) -> None:
         try:
+            self.manager.cancel_all()
+        except Exception:
+            pass
+        try:
             self.queue.save()
             save_config(self.config)
         except Exception:

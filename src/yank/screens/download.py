@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from textual.events import Click
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -157,7 +158,7 @@ class DownloadScreen(Screen):
             return bars[0].item_id
         return None
 
-    def on_click(self, event) -> None:
+    def on_click(self, event: Click) -> None:
         # Select progress bar under click
         widget = event.widget
         while widget is not None:

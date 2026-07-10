@@ -84,17 +84,38 @@ def _write_toml_manual(data: dict[str, Any], path: Path) -> None:
     for key, value in data.items():
         if isinstance(value, bool):
             lines.append(f"{key} = {'true' if value else 'false'}")
-        elif isinstance(value, int):
-            lines.append(f"{key} = {value}")
-        elif isinstance(value, float):
+        elif isinstance(value, (int, float)):
             lines.append(f"{key} = {value}")
         elif isinstance(value, str):
             escaped = value.replace("\\", "\\\\").replace('"', '\\"')
             lines.append(f'{key} = "{escaped}"')
+        elif isinstance(value, list):
+            parts = [_toml_value(v) for v in value]
+            lines.append(f"{key} = [{', '.join(parts)}]")
+        elif isinstance(value, dict):
+            parts = [f"{k} = {_toml_value(v)}" for k, v in value.items()]
+            lines.append(f"{key} = {{ {', '.join(parts)} }}")
         else:
-            escaped = str(value).replace("\\", "\\\\").replace('"', '\\"')
-            lines.append(f'{key} = "{escaped}"')
+            raise TypeError(
+                f"Cannot serialize config key '{key}' of type {type(value).__name__}. "
+                f"Only bool, int, float, str, list, and dict are supported."
+            )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _toml_value(value: Any) -> str:
+    """Serialize a single TOML value (for use in inline arrays/tables)."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    elif isinstance(value, (int, float)):
+        return str(value)
+    elif isinstance(value, str):
+        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"'
+    else:
+        raise TypeError(
+            f"Cannot serialize TOML value of type {type(value).__name__}"
+        )
 
 
 def save_config(cfg: AppConfig, path: Path | None = None) -> None:

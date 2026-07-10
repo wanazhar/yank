@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import threading
 import time
 import uuid
@@ -194,7 +195,7 @@ class DownloadManager:
         # Thread-safe access to cancel_flags
         with self._lock:
             cancel_flag = self._cancel_flags.setdefault(item_id, threading.Event())
-        cancel_flag.clear()
+            cancel_flag.clear()
         item.status = DownloadStatus.DOWNLOADING
         item.error = ""
         self._notify_progress(item)
@@ -213,26 +214,25 @@ class DownloadManager:
         item = self.get(item_id)
         if item is None:
             return
-        flag = self._cancel_flags.get(item_id)
-        if flag:
-            flag.set()
-        # Try to abort YoutubeDL (with lock for thread safety)
         with self._lock:
+            flag = self._cancel_flags.get(item_id)
+            if flag:
+                flag.set()
+            # Try to abort YoutubeDL
             ydl = self._ydl_instances.get(item_id)
-        if ydl is not None:
-            try:
-                # yt-dlp doesn't have a clean cancel; raising via hook works
-                pass
-            except Exception:
-                pass
-        if item.status in (
-            DownloadStatus.DOWNLOADING,
-            DownloadStatus.QUEUED,
-            DownloadStatus.PENDING,
-            DownloadStatus.PAUSED,
-        ):
-            item.status = DownloadStatus.CANCELLED
-            item.progress.status_text = "Cancelled"
+            if item.status in (
+                DownloadStatus.DOWNLOADING,
+                DownloadStatus.QUEUED,
+                DownloadStatus.PENDING,
+                DownloadStatus.PAUSED,
+            ):
+                item.status = DownloadStatus.CANCELLED
+                item.progress.status_text = "Cancelled"
+                cancelled = True
+            else:
+                cancelled = False
+        # yt-dlp doesn't have a clean cancel; raising via hook works
+        if cancelled:
             self._notify_progress(item)
             self._notify_finished(item)
             self._pump_queue()
@@ -242,20 +242,25 @@ class DownloadManager:
         item = self.get(item_id)
         if item is None:
             return
-        if item.status != DownloadStatus.DOWNLOADING:
-            if item.status == DownloadStatus.QUEUED:
-                item.status = DownloadStatus.PAUSED
-                self._notify_progress(item)
-            return
-        # Thread-safe access to cancel_flags
+        notify = False
+        pump = False
         with self._lock:
+            if item.status != DownloadStatus.DOWNLOADING:
+                if item.status == DownloadStatus.QUEUED:
+                    item.status = DownloadStatus.PAUSED
+                    notify = True
+                return
             flag = self._cancel_flags.get(item_id)
-        if flag:
-            flag.set()
-        item.status = DownloadStatus.PAUSED
-        item.progress.status_text = "Paused"
-        self._notify_progress(item)
-        self._pump_queue()
+            if flag:
+                flag.set()
+            item.status = DownloadStatus.PAUSED
+            item.progress.status_text = "Paused"
+            notify = True
+            pump = True
+        if notify:
+            self._notify_progress(item)
+        if pump:
+            self._pump_queue()
 
     def start_queued(self) -> None:
         """Start as many queued items as concurrency allows."""
@@ -302,17 +307,19 @@ class DownloadManager:
         if item is None:
             return
 
-        # Get cancel flag once (threading.Event is thread-safe for check/set)
-        cancel_flag = self._cancel_flags.get(item_id)
+        with self._lock:
+            cancel_flag = self._cancel_flags.get(item_id)
         if cancel_flag is None:
             return
+
         opts = item.options
         out_dir = Path(opts.output_dir or self.config.download_dir).expanduser()
         try:
             out_dir.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
-            item.status = DownloadStatus.ERROR
-            item.error = f"Cannot create download directory: {exc}"
+            with self._lock:
+                item.status = DownloadStatus.ERROR
+                item.error = f"Cannot create download directory: {exc}"
             self._notify_progress(item)
             self._notify_finished(item)
             self._pump_queue()
@@ -377,27 +384,36 @@ class DownloadManager:
         try:
             import yt_dlp
         except ImportError:
-            item.status = DownloadStatus.ERROR
-            item.error = "yt-dlp is not installed."
+            with self._lock:
+                item.status = DownloadStatus.ERROR
+                item.error = "yt-dlp is not installed."
             self._notify_progress(item)
             self._notify_finished(item)
             self._pump_queue()
             return
 
+        notify_finished = True
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                self._ydl_instances[item_id] = ydl
+                with self._lock:
+                    self._ydl_instances[item_id] = ydl
+                    if cancel_flag.is_set():
+                        if item.status != DownloadStatus.PAUSED:
+                            item.status = DownloadStatus.CANCELLED
+                        notify_finished = False
                 if cancel_flag.is_set():
-                    # Was cancelled before start
-                    if item.status != DownloadStatus.PAUSED:
-                        item.status = DownloadStatus.CANCELLED
                     return
+
                 info = ydl.extract_info(item.url, download=True)
+
+                with self._lock:
+                    if cancel_flag.is_set():
+                        if item.status == DownloadStatus.PAUSED:
+                            notify_finished = False
+                            return
+                        item.status = DownloadStatus.CANCELLED
+                        item.progress.status_text = "Cancelled"
                 if cancel_flag.is_set():
-                    if item.status == DownloadStatus.PAUSED:
-                        return
-                    item.status = DownloadStatus.CANCELLED
-                    item.progress.status_text = "Cancelled"
                     return
 
                 # Resolve final filepath
@@ -407,35 +423,37 @@ class DownloadManager:
                         file_path = info["requested_downloads"][0].get("filepath", "")
                     file_path = file_path or info.get("_filename") or info.get("filename") or ""
                     if not file_path and info.get("title"):
-                        # Best-effort
                         ext = info.get("ext") or "mp4"
                         file_path = str(out_dir / f"{info['title']}.{ext}")
 
-                item.file_path = file_path or item.progress.filename
-                item.status = DownloadStatus.COMPLETED
-                item.progress.percent = 100.0
-                item.progress.status_text = "Done"
-                item.title = (info or {}).get("title") or item.title
+                with self._lock:
+                    item.file_path = file_path or item.progress.filename
+                    item.status = DownloadStatus.COMPLETED
+                    item.progress.percent = 100.0
+                    item.progress.status_text = "Done"
+                    item.title = (info or {}).get("title") or item.title
         except _CancelDownload:
-            if item.status != DownloadStatus.PAUSED:
-                item.status = DownloadStatus.CANCELLED
-                item.progress.status_text = "Cancelled"
+            with self._lock:
+                if item.status != DownloadStatus.PAUSED:
+                    item.status = DownloadStatus.CANCELLED
+                    item.progress.status_text = "Cancelled"
         except Exception as exc:
-            if item.status == DownloadStatus.PAUSED:
-                return
-            if cancel_flag.is_set():
-                item.status = DownloadStatus.CANCELLED
-                item.progress.status_text = "Cancelled"
-            else:
-                item.status = DownloadStatus.ERROR
-                item.error = _humanize_download_error(str(exc))
-                item.progress.status_text = "Error"
+            with self._lock:
+                if item.status == DownloadStatus.PAUSED:
+                    notify_finished = False
+                elif cancel_flag.is_set():
+                    item.status = DownloadStatus.CANCELLED
+                    item.progress.status_text = "Cancelled"
+                else:
+                    item.status = DownloadStatus.ERROR
+                    item.error = _humanize_download_error(str(exc))
+                    item.progress.status_text = "Error"
         finally:
-            self._ydl_instances.pop(item_id, None)
+            with self._lock:
+                self._ydl_instances.pop(item_id, None)
+                self._cancel_flags.pop(item_id, None)
+                self._threads.pop(item_id, None)
             self._notify_progress(item)
-            # Avoid double-notify: cancel() already calls _notify_finished and
-            # _pump_queue when cancelling a DOWNLOADING item, and pause()
-            # should not trigger _notify_finished at all.
             if item.status not in (DownloadStatus.PAUSED, DownloadStatus.CANCELLED):
                 self._notify_finished(item)
                 self._pump_queue()
@@ -466,37 +484,41 @@ class DownloadManager:
                 try:
                     percent = float(str(d["_percent_str"]).replace("%", "").strip())
                 except ValueError:
-                    percent = item.progress.percent
+                    with self._lock:
+                        percent = item.progress.percent
 
             filename = d.get("filename") or d.get("tmpfilename") or ""
-            item.progress = DownloadProgress(
-                percent=percent,
-                speed=float(speed or 0),
-                eta=float(eta) if eta is not None else None,
-                downloaded_bytes=int(downloaded),
-                total_bytes=int(total) if total else None,
-                filename=str(filename),
-                status_text="Downloading",
-            )
-            if filename:
-                item.file_path = str(filename)
+            with self._lock:
+                item.progress = DownloadProgress(
+                    percent=percent,
+                    speed=float(speed or 0),
+                    eta=float(eta) if eta is not None else None,
+                    downloaded_bytes=int(downloaded),
+                    total_bytes=int(total) if total else None,
+                    filename=str(filename),
+                    status_text="Downloading",
+                )
+                if filename:
+                    item.file_path = str(filename)
             self._notify_progress(item)
 
         elif status == "finished":
             filename = d.get("filename") or ""
-            item.progress.percent = 100.0
-            item.progress.speed = 0
-            item.progress.eta = 0
-            item.progress.status_text = "Processing"
-            if filename:
-                item.progress.filename = str(filename)
-                item.file_path = str(filename)
+            with self._lock:
+                item.progress.percent = 100.0
+                item.progress.speed = 0
+                item.progress.eta = 0
+                item.progress.status_text = "Processing"
+                if filename:
+                    item.progress.filename = str(filename)
+                    item.file_path = str(filename)
             self._notify_progress(item)
 
         elif status == "error":
-            item.status = DownloadStatus.ERROR
-            item.error = "Download failed."
-            item.progress.status_text = "Error"
+            with self._lock:
+                item.status = DownloadStatus.ERROR
+                item.error = "Download failed."
+                item.progress.status_text = "Error"
             self._notify_progress(item)
 
     def _notify_progress(self, item: DownloadItem) -> None:
@@ -542,9 +564,12 @@ def _humanize_download_error(raw: str) -> str:
         return "Access forbidden while downloading."
     if "http error 404" in lower:
         return "File not found on server."
-    # First line, strip ERROR:
+    # First line, strip ERROR: and filesystem paths
     line = raw.splitlines()[0] if raw else "Download failed."
     line = line.replace("ERROR:", "").strip()
+    # Strip common filesystem paths that may leak from yt-dlp errors
+    line = re.sub(r"((?:/[\w.-]+)+/\S*)", "[path]", line)
+    line = re.sub(r"([A-Za-z]:\\[\w.\\-]+\S*)", "[path]", line, flags=re.I)
     if len(line) > 200:
         line = line[:197] + "..."
     return line or "Download failed."
