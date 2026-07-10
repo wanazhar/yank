@@ -38,6 +38,26 @@ def _coerce_optional_str(value: Any) -> str | None:
     return str(value)
 
 
+def _coerce_float(value: Any, default: float) -> float:
+    """Coerce a value to float with fallback."""
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_int(value: Any, default: int) -> int:
+    """Coerce a value to int with fallback."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 DATA_DIR = Path.home() / ".local" / "share" / "yank"
 QUEUE_PATH = DATA_DIR / "queue.json"
 
@@ -191,8 +211,8 @@ class QueueEngine:
                             custom_format=_coerce_optional_str(data.get("custom_format")),
                             error=str(data.get("error", "")),
                             file_path=str(data.get("file_path", "")),
-                            created_at=float(data.get("created_at")) if data.get("created_at") is not None else time.time(),
-                            order=int(data.get("order", i)),
+                            created_at=_coerce_float(data.get("created_at"), time.time()),
+                            order=_coerce_int(data.get("order"), i),
                         )
                         # Skip completed/cancelled on restore? Keep them briefly
                         items.append(qi)

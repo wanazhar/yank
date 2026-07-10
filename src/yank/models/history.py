@@ -54,6 +54,18 @@ class HistoryEntry:
 
 
 
+
+
+def _coerce_int_safe(value: Any, default: int) -> int:
+    """Coerce a value to int with fallback, never raises."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 _VALID_HISTORY_STATUSES = frozenset({"success", "error", "cancelled"})
 
 
@@ -97,7 +109,7 @@ class HistoryStore:
                                 file_path=str(item.get("file_path", "")),
                                 status=_coerce_history_status(item.get("status")),
                                 error=str(item.get("error", "")),
-                                filesize=int(item.get("filesize", 0) or 0),
+                                filesize=_coerce_int_safe(item.get("filesize"), 0),
                             )
                         )
                     except (TypeError, ValueError):
