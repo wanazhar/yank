@@ -14,7 +14,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Input, Label, TextArea
+from textual.widgets import Button, Footer, Header, Input, Label, Static, TextArea
 
 from yank.constants import FORMAT_TIMEOUT
 from yank.engine.formats import detect_platform, is_valid_url
