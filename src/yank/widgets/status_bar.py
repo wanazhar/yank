@@ -8,7 +8,11 @@ from pathlib import Path
 from textual.app import ComposeResult
 from textual.reactive import reactive
 from textual.widget import Widget
-from textual.widgets import Label, Static
+from textual.widgets import Label
+
+from yank.logging import get_logger
+
+_logger = get_logger(__name__)
 
 
 class StatusBar(Widget):
@@ -107,7 +111,7 @@ class StatusBar(Widget):
             self.query_one("#sb-right", Label).update(f"disk: {disk}")
             self.query_one("#sb-notify", Label).update(self.notification or "")
         except Exception:
-            pass
+            _logger.debug("StatusBar _render failed", exc_info=True)
 
 
 def _disk_free(path: str) -> str:

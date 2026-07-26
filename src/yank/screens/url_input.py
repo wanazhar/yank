@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from yank.app import YankApp
+
 import pyfiglet
 
 from textual import on, work
@@ -9,17 +14,24 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Input, Label, Static, TextArea
+from textual.widgets import Button, Footer, Header, Input, Label, TextArea
 
+from yank.constants import FORMAT_TIMEOUT
 from yank.engine.formats import detect_platform, is_valid_url
 
 
 class URLInputScreen(Screen):
     """First screen: paste URL(s) for single or batch queue."""
 
+    @property
+    def _app(self) -> YankApp:  # type: ignore[name-defined]
+        """Narrow ``self.app`` to the known ``YankApp`` subtype."""
+        return cast("YankApp", self.app)
+
     BINDINGS = [
         Binding("escape", "app.quit", "Quit", show=True),
         Binding("ctrl+c", "app.quit", "Quit", show=False),
+        Binding("ctrl+v", "paste_clipboard", "Paste", show=True),
         Binding("f2", "open_queue", "Queue", show=True),
         Binding("f3", "open_history", "History", show=True),
         Binding("f4", "open_settings", "Settings", show=True),
@@ -69,6 +81,13 @@ class URLInputScreen(Screen):
         margin-bottom: 1;
         text-align: center;
         width: 100%;
+    }
+    #clip-hint {
+        color: #22c55e;
+        margin-bottom: 1;
+        text-align: center;
+        width: 100%;
+        height: auto;
     }
     #url-input {
         width: 100%;
@@ -133,6 +152,7 @@ class URLInputScreen(Screen):
                 yield Static(logo_text, id="ascii-logo")
                 yield Label("yank the web", id="subtitle")
             yield Label("Paste a video URL · or multiple URLs (one per line) for batch", id="url-hint")
+            yield Label("", id="clip-hint")
             yield Input(
                 placeholder="https://…",
                 id="url-input",
@@ -153,6 +173,40 @@ class URLInputScreen(Screen):
     def on_mount(self) -> None:
         self.query_one("#url-input", Input).focus()
         self._batch_mode = False
+        self._detect_clipboard_url()
+
+    def _detect_clipboard_url(self) -> None:
+        """Check system clipboard for a valid URL and pre-fill the input."""
+        try:
+            text = self.app.clipboard.strip()
+        except Exception:
+            return
+        if not text:
+            return
+        # Take the first URL-like line
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+        for line in lines:
+            if is_valid_url(line):
+                inp = self.query_one("#url-input", Input)
+                if not inp.value.strip():
+                    inp.value = line
+                    self.query_one("#clip-hint", Label).update("URL detected from clipboard")
+                return
+
+    def action_paste_clipboard(self) -> None:
+        """Paste system clipboard content into the URL input (Ctrl+V)."""
+        try:
+            text = self.app.clipboard.strip()
+        except Exception:
+            self.notify("Cannot read clipboard.", severity="warning")
+            return
+        if not text:
+            return
+        inp = self.query_one("#url-input", Input)
+        inp.value = text
+        inp.focus()
+        inp.action_end()
+        self.query_one("#clip-hint", Label).update("Pasted from clipboard")
 
     @on(Input.Changed, "#url-input")
     def on_url_changed(self, event: Input.Changed) -> None:
@@ -266,7 +320,7 @@ class URLInputScreen(Screen):
             )
         )
         try:
-            meta = extract_formats(urls[0], timeout=30)
+            meta = extract_formats(urls[0], timeout=FORMAT_TIMEOUT)
             if not meta.formats:
                 self.app.call_from_thread(
                     lambda: self.query_one("#url-error", Label).update(

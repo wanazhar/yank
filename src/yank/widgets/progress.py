@@ -9,6 +9,9 @@ from textual.widget import Widget
 from textual.widgets import Label, ProgressBar, Static
 
 from yank.engine.downloader import DownloadItem, DownloadStatus
+from yank.logging import get_logger
+
+_logger = get_logger(__name__)
 
 
 class DownloadProgressBar(Widget):
@@ -112,7 +115,7 @@ class DownloadProgressBar(Widget):
             else:
                 bar.remove_class("complete")
         except Exception:
-            pass
+            _logger.debug("Failed to update progress bar for %s", item.id, exc_info=True)
         try:
             self.query_one("#dp-pct", Label).update(item.progress.percent_display)
             
@@ -146,7 +149,7 @@ class DownloadProgressBar(Widget):
             err = item.error if item.status == DownloadStatus.ERROR else ""
             self.query_one("#dp-error", Label).update(err)
         except Exception:
-            pass
+            _logger.debug("Failed to update progress labels for %s", item.id, exc_info=True)
 
     @staticmethod
     def _status_text(item: DownloadItem) -> str:

@@ -2,19 +2,33 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from yank.app import YankApp
+
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Label, Static
+from textual.widgets import Button, Footer, Header, Label
 
+from yank.constants import MAX_SUBTITLE_DISPLAY
 from yank.engine.formats import FormatInfo, VideoMeta, pick_best_format
+from yank.logging import get_logger
 from yank.widgets.format_table import FormatTable
+
+_logger = get_logger(__name__)
 
 
 class FormatSelectScreen(Screen):
     """Show formats in a table; side panel with video metadata."""
+
+    @property
+    def _app(self) -> YankApp:  # type: ignore[name-defined]
+        """Narrow ``self.app`` to the known ``YankApp`` subtype."""
+        return cast("YankApp", self.app)
 
     BINDINGS = [
         Binding("escape", "go_back", "Back", show=True),
@@ -114,11 +128,11 @@ class FormatSelectScreen(Screen):
                 )
                 yield Label("Subtitles", classes="meta-row")
                 subs = (
-                    ", ".join(self.meta.available_subtitle_langs[:12])
+                    ", ".join(self.meta.available_subtitle_langs[:MAX_SUBTITLE_DISPLAY])
                     if self.meta.has_subtitles
                     else "none"
                 )
-                if self.meta.has_subtitles and len(self.meta.available_subtitle_langs) > 12:
+                if self.meta.has_subtitles and len(self.meta.available_subtitle_langs) > MAX_SUBTITLE_DISPLAY:
                     subs += "…"
                 yield Label(subs, classes="meta-value", id="meta-subs")
                 yield Label("URL", classes="meta-row")
@@ -144,9 +158,9 @@ class FormatSelectScreen(Screen):
         table = self.query_one("#format-table", FormatTable)
         preference = "best"
         try:
-            preference = self.app.config.format_preference  # type: ignore[attr-defined]
+            preference = self._app.config.format_preference
         except Exception:
-            pass
+            _logger.debug("Failed to read format_preference from config", exc_info=True)
         best = pick_best_format(self.meta.formats, preference) if self.meta.formats else None
         selected_id = best.format_id if best else None
         self._selected = best

@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from yank.app import YankApp
+
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -9,12 +14,21 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Label
 
+from yank.constants import QUEUE_POLL_INTERVAL
 from yank.engine.downloader import DownloadStatus
+from yank.logging import get_logger
 from yank.widgets.progress import QueueProgressSummary
+
+_logger = get_logger(__name__)
 
 
 class QueueScreen(Screen):
     """Tab/panel showing all queued downloads with reorder and batch controls."""
+
+    @property
+    def _app(self) -> YankApp:  # type: ignore[name-defined]
+        """Narrow ``self.app`` to the known ``YankApp`` subtype."""
+        return cast("YankApp", self.app)
 
     BINDINGS = [
         Binding("escape", "go_back", "Back", show=True),
@@ -39,15 +53,6 @@ class QueueScreen(Screen):
         height: 1fr;
         margin: 1;
         background: #0a0a0f;
-    }
-    #q-table > .datatable--header {
-        background: #0a0a0f;
-        color: #06b6d4;
-        text-style: bold;
-    }
-    #q-table > .datatable--cursor {
-        background: #a855f7 40%;
-        border: solid #06b6d4;
     }
     #q-table > .datatable--odd-row {
         background: #0d0d12;
@@ -93,7 +98,7 @@ class QueueScreen(Screen):
         table = self.query_one("#q-table", DataTable)
         table.add_columns("#", "Title", "Status", "Format", "URL")
         self.refresh_table()
-        self.set_interval(0.5, self._tick_refresh)
+        self.set_interval(QUEUE_POLL_INTERVAL, self._tick_refresh)
         table.focus()
 
     def on_screen_resume(self) -> None:
@@ -105,8 +110,8 @@ class QueueScreen(Screen):
             self.refresh_table()
 
     def refresh_table(self) -> None:
-        queue = self.app.queue  # type: ignore[attr-defined]
-        manager = self.app.manager  # type: ignore[attr-defined]
+        queue = self._app.queue
+        manager = self._app.manager
         table = self.query_one("#q-table", DataTable)
         # Remember cursor
         cursor = table.cursor_row
@@ -146,8 +151,8 @@ class QueueScreen(Screen):
                 queue.total_progress(),
             )
         except Exception:
-            pass
-        self.app.refresh_status_bar()  # type: ignore[attr-defined]
+            _logger.debug("Failed to update queue summary widget", exc_info=True)
+        self._app.refresh_status_bar()  
 
     def _selected_id(self) -> str | None:
         table = self.query_one("#q-table", DataTable)
@@ -163,22 +168,22 @@ class QueueScreen(Screen):
             cell_key: CellKey = table.coordinate_to_cell_key(Coordinate(row, 0))
             return cell_key.row_key.value
         except Exception:
-            pass
+            _logger.debug("coordinate_to_cell_key failed for row %s", row, exc_info=True)
         # Fallback via queue order
-        items = self.app.queue.get_items()  # type: ignore[attr-defined]
+        items = self._app.queue.get_items()  
         if 0 <= (row or 0) < len(items):
             return items[row].id
         return None
 
     @on(Button.Pressed, "#btn-start")
     def action_start_all(self) -> None:
-        self.app.queue.start_all()  # type: ignore[attr-defined]
+        self._app.queue.start_all()  
         self.refresh_table()
         self.notify("Started queue.", severity="information")
 
     @on(Button.Pressed, "#btn-pause")
     def action_pause_all(self) -> None:
-        self.app.queue.pause_all()  # type: ignore[attr-defined]
+        self._app.queue.pause_all()  
         self.refresh_table()
         self.notify("Paused all downloads.", severity="information")
 
@@ -188,7 +193,7 @@ class QueueScreen(Screen):
         if not item_id:
             self.notify("Select an item first.", severity="warning")
             return
-        self.app.queue.remove(item_id)  # type: ignore[attr-defined]
+        self._app.queue.remove(item_id)  
         self.refresh_table()
 
     @on(Button.Pressed, "#btn-up")
@@ -196,7 +201,7 @@ class QueueScreen(Screen):
         item_id = self._selected_id()
         if not item_id:
             return
-        self.app.queue.move_up(item_id)  # type: ignore[attr-defined]
+        self._app.queue.move_up(item_id)  
         self.refresh_table()
         # Move cursor up
         table = self.query_one("#q-table", DataTable)
@@ -208,7 +213,7 @@ class QueueScreen(Screen):
         item_id = self._selected_id()
         if not item_id:
             return
-        self.app.queue.move_down(item_id)  # type: ignore[attr-defined]
+        self._app.queue.move_down(item_id)  
         self.refresh_table()
         table = self.query_one("#q-table", DataTable)
         if table.cursor_row is not None and table.cursor_row < table.row_count - 1:
@@ -216,7 +221,7 @@ class QueueScreen(Screen):
 
     @on(Button.Pressed, "#btn-clear")
     def on_clear(self) -> None:
-        self.app.queue.clear_finished()  # type: ignore[attr-defined]
+        self._app.queue.clear_finished()  
         self.refresh_table()
 
     @on(Button.Pressed, "#btn-downloads")

@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from yank.app import YankApp
+
 from pathlib import Path
 
 from textual import on, work
@@ -16,14 +21,21 @@ from textual.widgets import (
     Input,
     Label,
     Select,
-    Static,
 )
 
+from yank.logging import get_logger
 from yank.models.config import AppConfig, save_config
+
+_logger = get_logger(__name__)
 
 
 class SettingsScreen(Screen):
     """Edit app defaults and manage yt-dlp."""
+
+    @property
+    def _app(self) -> YankApp:  # type: ignore[name-defined]
+        """Narrow ``self.app`` to the known ``YankApp`` subtype."""
+        return cast("YankApp", self.app)
 
     BINDINGS = [
         Binding("escape", "go_back", "Back", show=True),
@@ -81,19 +93,10 @@ class SettingsScreen(Screen):
     #set-status.error {
         color: #ef4444;
     }
-    Input {
-        border: solid #06b6d4;
-        background: #0a0a0f;
-        color: #e2e8f0;
-    }
-    Input:focus {
-        border: solid #06b6d4;
-        background: #0a0a0f;
-    }
     """
 
     def compose(self) -> ComposeResult:
-        cfg: AppConfig = self.app.config  # type: ignore[attr-defined]
+        cfg: AppConfig = self._app.config
         yield Header(show_clock=True)
         with VerticalScroll(id="set-scroll"):
             yield Label("Settings", id="set-title")
@@ -127,6 +130,9 @@ class SettingsScreen(Screen):
             yield Label("Default subtitle language", classes="set-label")
             yield Input(value=cfg.default_subtitle_lang, id="set-sublang")
 
+            yield Label("Proxy URL (e.g. http://127.0.0.1:8080)", classes="set-label")
+            yield Input(value=cfg.proxy, placeholder="http://proxy:port", id="set-proxy")
+
             yield Label("yt-dlp update check", classes="set-label")
             yield Select(
                 [
@@ -158,7 +164,7 @@ class SettingsScreen(Screen):
         self._refresh_ytdlp_version()
 
     def _refresh_ytdlp_version(self) -> None:
-        mgr = self.app.ytdlp  # type: ignore[attr-defined]
+        mgr = self._app.ytdlp
         ver = mgr.current_version()
         installed = mgr.is_installed()
         self.query_one("#set-ytdlp-ver", Label).update(
@@ -173,7 +179,7 @@ class SettingsScreen(Screen):
         self._save()
 
     def _save(self) -> None:
-        cfg: AppConfig = self.app.config  # type: ignore[attr-defined]
+        cfg: AppConfig = self._app.config
         status = self.query_one("#set-status", Label)
         status.remove_class("error")
 
@@ -199,12 +205,15 @@ class SettingsScreen(Screen):
             self.query_one("#set-sublang", Input).value.strip() or "en"
         )
 
+        proxy = self.query_one("#set-proxy", Input).value.strip()
+        cfg.proxy = proxy
+
         try:
             fp = self.query_one("#set-format-pref", Select).value
             if fp and fp != Select.BLANK:
                 cfg.format_preference = str(fp)  # type: ignore[assignment]
         except Exception:
-            pass
+            _logger.debug("Failed to read format_preference from settings", exc_info=True)
 
         try:
             conc = self.query_one("#set-concurrent", Select).value
@@ -220,7 +229,7 @@ class SettingsScreen(Screen):
             if ui and ui != Select.BLANK:
                 cfg.update_check_interval = str(ui)  # type: ignore[assignment]
         except Exception:
-            pass
+            _logger.debug("Failed to read update_check_interval from settings", exc_info=True)
 
         cfg.ensure_valid()
         try:
@@ -231,11 +240,11 @@ class SettingsScreen(Screen):
             return
 
         # Update in-memory config references
-        self.app.config = cfg  # type: ignore[attr-defined]
-        self.app.manager.config = cfg  # type: ignore[attr-defined]
-        self.app.queue.config = cfg  # type: ignore[attr-defined]
-        self.app.ytdlp.config = cfg  # type: ignore[attr-defined]
-        self.app.refresh_status_bar()  # type: ignore[attr-defined]
+        self._app.config = cfg
+        self._app.manager.config = cfg
+        self._app.queue.config = cfg
+        self._app.ytdlp.config = cfg
+        self._app.refresh_status_bar()
         status.update("Settings saved.")
         self.notify("Settings saved.", severity="information")
 
@@ -245,7 +254,7 @@ class SettingsScreen(Screen):
 
     @work(thread=True, exclusive=True)
     def _check_update(self) -> None:
-        mgr = self.app.ytdlp  # type: ignore[attr-defined]
+        mgr = self._app.ytdlp
         self.app.call_from_thread(
             lambda: self.query_one("#set-ytdlp-msg", Label).update("Checking…")
         )
@@ -261,7 +270,7 @@ class SettingsScreen(Screen):
                 self.notify(result.message, severity="warning")
             else:
                 self.notify(result.message, severity="information")
-            self.app.refresh_status_bar()  # type: ignore[attr-defined]
+            self._app.refresh_status_bar()  
 
         self.app.call_from_thread(_apply)
 
@@ -271,7 +280,7 @@ class SettingsScreen(Screen):
 
     @work(thread=True, exclusive=True)
     def _do_update(self) -> None:
-        mgr = self.app.ytdlp  # type: ignore[attr-defined]
+        mgr = self._app.ytdlp
 
         def status(msg: str) -> None:
             self.app.call_from_thread(
@@ -284,7 +293,7 @@ class SettingsScreen(Screen):
             self._refresh_ytdlp_version()
             self.query_one("#set-ytdlp-msg", Label).update(msg)
             self.notify(msg, severity="information" if ok else "error")
-            self.app.refresh_status_bar()  # type: ignore[attr-defined]
+            self._app.refresh_status_bar()  
 
         self.app.call_from_thread(_apply)
 
@@ -294,7 +303,7 @@ class SettingsScreen(Screen):
 
     @work(thread=True, exclusive=True)
     def _do_install(self) -> None:
-        mgr = self.app.ytdlp  # type: ignore[attr-defined]
+        mgr = self._app.ytdlp
 
         def status(msg: str) -> None:
             self.app.call_from_thread(
@@ -312,7 +321,7 @@ class SettingsScreen(Screen):
             )
             self.query_one("#set-ytdlp-msg", Label).update(msg)
             self.notify(msg, severity="information" if ok else "error")
-            self.app.refresh_status_bar()  # type: ignore[attr-defined]
+            self._app.refresh_status_bar()  
 
         self.app.call_from_thread(_apply)
 

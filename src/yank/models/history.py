@@ -9,8 +9,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-DATA_DIR = Path.home() / ".local" / "share" / "yank"
-HISTORY_PATH = DATA_DIR / "history.json"
+from yank._safe_types import _coerce_int
+from yank.constants import HISTORY_CAP
+from yank.paths import HISTORY_PATH
 
 Status = Literal["success", "error", "cancelled"]
 
@@ -56,16 +57,6 @@ class HistoryEntry:
 
 
 
-def _coerce_int_safe(value: Any, default: int) -> int:
-    """Coerce a value to int with fallback, never raises."""
-    if value is None:
-        return default
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return default
-
-
 _VALID_HISTORY_STATUSES = frozenset({"success", "error", "cancelled"})
 
 
@@ -109,7 +100,7 @@ class HistoryStore:
                                 file_path=str(item.get("file_path", "")),
                                 status=_coerce_history_status(item.get("status")),
                                 error=str(item.get("error", "")),
-                                filesize=_coerce_int_safe(item.get("filesize"), 0),
+                                filesize=_coerce_int(item.get("filesize"), 0),
                             )
                         )
                     except (TypeError, ValueError):
@@ -132,8 +123,8 @@ class HistoryStore:
         with self._lock:
             self.entries.insert(0, entry)
             # Cap history size
-            if len(self.entries) > 1000:
-                self.entries = self.entries[:1000]
+            if len(self.entries) > HISTORY_CAP:
+                self.entries = self.entries[:HISTORY_CAP]
         self.save()
 
     def search(self, query: str) -> list[HistoryEntry]:

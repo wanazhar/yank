@@ -10,9 +10,14 @@ import time
 from dataclasses import dataclass
 from typing import Callable
 
+from packaging.version import Version
+
+from yank.constants import ERROR_MSG_MAX_LEN, PIP_TIMEOUT, SECONDS_PER_DAY
+from yank.logging import get_logger
 from yank.models.config import AppConfig, save_config
 
-TWENTY_FOUR_HOURS = 24 * 3600
+_logger = get_logger(__name__)
+
 
 
 @dataclass
@@ -104,7 +109,7 @@ class YtDlpManager:
                     message="Update checks disabled.",
                 )
             elapsed = time.time() - (self.config.last_update_check or 0)
-            if interval == "ask" and elapsed < TWENTY_FOUR_HOURS:
+            if interval == "ask" and elapsed < SECONDS_PER_DAY:
                 return UpdateCheckResult(
                     installed=True,
                     current_version=current,
@@ -136,7 +141,7 @@ class YtDlpManager:
                 message="Could not check for updates.",
             )
 
-        update_available = bool(latest) and _version_is_newer(latest, current)
+        update_available = bool(latest) and Version(latest) > Version(current)
         msg = (
             f"Update available: {current} → {latest}"
             if update_available
@@ -172,7 +177,7 @@ class YtDlpManager:
         if not self.is_installed():
             return True
         elapsed = time.time() - (self.config.last_update_check or 0)
-        return elapsed >= TWENTY_FOUR_HOURS
+        return elapsed >= SECONDS_PER_DAY
 
     # ── Internals ───────────────────────────────────────────────────────────
 
@@ -186,7 +191,7 @@ class YtDlpManager:
                 cmd,
                 capture_output=True,
                 text=True,
-                timeout=180,
+                timeout=PIP_TIMEOUT,
                 check=False,
             )
             if result.returncode == 0:
@@ -195,8 +200,8 @@ class YtDlpManager:
             # Prefer last non-empty line
             lines = [ln for ln in err.splitlines() if ln.strip()]
             short = lines[-1] if lines else "pip install failed."
-            if len(short) > 200:
-                short = short[:197] + "..."
+            if len(short) > ERROR_MSG_MAX_LEN:
+                short = short[: ERROR_MSG_MAX_LEN - 3] + "..."
             return False, short
         except subprocess.TimeoutExpired:
             return False, "pip install timed out."
@@ -220,53 +225,7 @@ class YtDlpManager:
                 return str(ver), ""
             return None, "Unexpected PyPI response."
         except Exception as exc:
-            return None, str(exc)[:200]
+            return None, str(exc)[:ERROR_MSG_MAX_LEN]
 
 
-def _version_is_newer(latest: str, current: str) -> bool:
-    """Compare version strings; return True if latest > current."""
-    def parts(v: str) -> list[int | str]:
-        out: list[int | str] = []
-        for chunk in v.replace("-", ".").split("."):
-            if chunk.isdigit():
-                out.append(int(chunk))
-            else:
-                # split digits and text
-                buf = ""
-                for ch in chunk:
-                    if ch.isdigit():
-                        if buf and not buf.isdigit():
-                            out.append(buf)
-                            buf = ""
-                        buf += ch
-                    else:
-                        if buf and buf.isdigit():
-                            out.append(int(buf))
-                            buf = ""
-                        buf += ch
-                if buf:
-                    out.append(int(buf) if buf.isdigit() else buf)
-        return out
 
-    try:
-        a = parts(latest)
-        b = parts(current)
-        # Pad
-        n = max(len(a), len(b))
-        a.extend([0] * (n - len(a)))
-        b.extend([0] * (n - len(b)))
-        for x, y in zip(a, b):
-            if type(x) is type(y):
-                if x > y:  # type: ignore[operator]
-                    return True
-                if x < y:  # type: ignore[operator]
-                    return False
-            else:
-                # int > str for simplicity
-                if isinstance(x, int) and not isinstance(y, int):
-                    return True
-                if not isinstance(x, int) and isinstance(y, int):
-                    return False
-        return False
-    except Exception:
-        return latest != current

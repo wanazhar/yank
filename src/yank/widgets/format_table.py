@@ -6,6 +6,9 @@ from textual.message import Message
 from textual.widgets import DataTable
 
 from yank.engine.formats import FormatInfo
+from yank.logging import get_logger
+
+_logger = get_logger(__name__)
 
 
 class FormatTable(DataTable):
@@ -130,7 +133,7 @@ class FormatTable(DataTable):
             try:
                 self.update_cell_at((i, 0), mark)
             except Exception:
-                pass
+                _logger.debug("update_cell_at failed at row %s", i, exc_info=True)
 
     def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         self.select_highlighted()

@@ -2,20 +2,34 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from yank.app import YankApp
+
 from textual.events import Click
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Label, Static
+from textual.widgets import Button, Footer, Header, Label
 
+from yank.constants import DOWNLOAD_POLL_INTERVAL
 from yank.engine.downloader import DownloadItem, DownloadStatus
+from yank.logging import get_logger
 from yank.widgets.progress import DownloadProgressBar, QueueProgressSummary
+
+_logger = get_logger(__name__)
 
 
 class DownloadScreen(Screen):
     """Live progress bars for downloads; pause/cancel per item."""
+
+    @property
+    def _app(self) -> YankApp:  # type: ignore[name-defined]
+        """Narrow ``self.app`` to the known ``YankApp`` subtype."""
+        return cast("YankApp", self.app)
 
     BINDINGS = [
         Binding("escape", "go_back", "Back", show=True),
@@ -87,13 +101,13 @@ class DownloadScreen(Screen):
     async def on_mount(self) -> None:
         await self.rebuild_list()
         # Poll progress ~4 Hz
-        self._timer = self.set_interval(0.25, self.refresh_progress)
+        self._timer = self.set_interval(DOWNLOAD_POLL_INTERVAL, self.refresh_progress)
 
     async def on_screen_resume(self) -> None:
         await self.rebuild_list()
 
     async def rebuild_list(self) -> None:
-        manager = self.app.manager  # type: ignore[attr-defined]
+        manager = self._app.manager
         items = manager.all_items()
         # Show non-cancelled recent items, newest/active first
         items = sorted(
@@ -123,16 +137,16 @@ class DownloadScreen(Screen):
         self._update_summary()
 
     def refresh_progress(self) -> None:
-        manager = self.app.manager  # type: ignore[attr-defined]
+        manager = self._app.manager
         for bar in self.query(DownloadProgressBar):
             item = manager.get(bar.item_id)
             if item:
                 bar.update_from_item(item)
         self._update_summary()
-        self.app.refresh_status_bar()  # type: ignore[attr-defined]
+        self._app.refresh_status_bar()  
 
     def _update_summary(self) -> None:
-        queue = self.app.queue  # type: ignore[attr-defined]
+        queue = self._app.queue
         try:
             self.query_one("#dl-summary", QueueProgressSummary).update_summary(
                 queue.size(),
@@ -140,7 +154,7 @@ class DownloadScreen(Screen):
                 queue.total_progress(),
             )
         except Exception:
-            pass
+            _logger.debug("Failed to update download summary widget", exc_info=True)
 
     def _selected_item_id(self) -> str | None:
         if self._selected_id:
@@ -168,10 +182,10 @@ class DownloadScreen(Screen):
         if not item_id:
             self.notify("No download selected.", severity="warning")
             return
-        self.app.manager.pause(item_id)  # type: ignore[attr-defined]
-        di = self.app.manager.get(item_id)  # type: ignore[attr-defined]
+        self._app.manager.pause(item_id)  
+        di = self._app.manager.get(item_id)  
         if di:
-            self.app.queue.sync_from_manager(di)  # type: ignore[attr-defined]
+            self._app.queue.sync_from_manager(di)  
         self.refresh_progress()
 
     @on(Button.Pressed, "#btn-cancel")
@@ -180,20 +194,20 @@ class DownloadScreen(Screen):
         if not item_id:
             self.notify("No download selected.", severity="warning")
             return
-        self.app.manager.cancel(item_id)  # type: ignore[attr-defined]
-        di = self.app.manager.get(item_id)  # type: ignore[attr-defined]
+        self._app.manager.cancel(item_id)  
+        di = self._app.manager.get(item_id)  
         if di:
-            self.app.queue.sync_from_manager(di)  # type: ignore[attr-defined]
+            self._app.queue.sync_from_manager(di)  
         self.refresh_progress()
 
     @on(Button.Pressed, "#btn-pause-all")
     def on_pause_all(self) -> None:
-        self.app.queue.pause_all()  # type: ignore[attr-defined]
+        self._app.queue.pause_all()  
         self.refresh_progress()
 
     @on(Button.Pressed, "#btn-start-all")
     def on_start_all(self) -> None:
-        self.app.queue.start_all()  # type: ignore[attr-defined]
+        self._app.queue.start_all()  
         self.refresh_progress()
 
     def action_open_queue(self) -> None:

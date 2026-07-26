@@ -2,6 +2,15 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from yank.app import YankApp
+
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
@@ -9,11 +18,39 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Label
 
+from yank.constants import FORMAT_TIMEOUT
 from yank.models.history import HistoryEntry
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+
+def _format_size(size: int) -> str:
+    """Human-readable file size."""
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if size < 1024:
+            return f"{size:.1f} {unit}" if unit != "B" else f"{size} B"
+        size /= 1024.0
+    return f"{size:.1f} PB"
+
+
+def _open_with_system(path: str) -> None:
+    """Open a file or directory with the system default handler."""
+    system = sys.platform
+    if system == "darwin":
+        subprocess.run(["open", path], check=True)
+    elif system == "win32":
+        os.startfile(path)  # type: ignore[attr-defined]
+    else:
+        subprocess.run(["xdg-open", path], check=True)
 
 
 class HistoryScreen(Screen):
-    """Past downloads: Date, Title, URL, Format, File path, Status."""
+    """Past downloads: Date, Title, URL, Format, File path, Status, Size."""
+
+    @property
+    def _app(self) -> YankApp:  # type: ignore[name-defined]
+        """Narrow ``self.app`` to the known ``YankApp`` subtype."""
+        return cast("YankApp", self.app)
 
     BINDINGS = [
         Binding("escape", "go_back", "Back", show=True),
@@ -48,15 +85,6 @@ class HistoryScreen(Screen):
         margin: 0 1;
         background: #0a0a0f;
     }
-    #hist-table > .datatable--header {
-        background: #0a0a0f;
-        color: #06b6d4;
-        text-style: bold;
-    }
-    #hist-table > .datatable--cursor {
-        background: #a855f7 40%;
-        border: solid #06b6d4;
-    }
     #hist-table > .datatable--odd-row {
         background: #0d0d12;
     }
@@ -70,6 +98,13 @@ class HistoryScreen(Screen):
     #hist-actions Button {
         margin-right: 1;
     }
+    #hist-file-actions {
+        height: auto;
+        padding: 0 1 1 1;
+    }
+    #hist-file-actions Button {
+        margin-right: 1;
+    }
     #hist-detail {
         height: auto;
         max-height: 4;
@@ -78,12 +113,18 @@ class HistoryScreen(Screen):
     }
     """
 
+    COLUMNS = ("Date", "Title", "URL", "Format", "File", "Status", "Size")
+
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield Label("History", id="hist-header")
         yield Input(placeholder="Search title or URL…", id="hist-search")
         yield DataTable(id="hist-table", zebra_stripes=True, cursor_type="row")
         yield Label("", id="hist-detail")
+        with Horizontal(id="hist-file-actions"):
+            yield Button("Open file", id="btn-open-file", variant="primary")
+            yield Button("Open folder", id="btn-open-folder")
+            yield Button("Copy path", id="btn-copy-path")
         with Horizontal(id="hist-actions"):
             yield Button("Re-download", variant="primary", id="btn-redownload")
             yield Button("Copy info", id="btn-copy")
@@ -93,19 +134,88 @@ class HistoryScreen(Screen):
 
     def on_mount(self) -> None:
         table = self.query_one("#hist-table", DataTable)
-        table.add_columns("Date", "Title", "URL", "Format", "File", "Status")
+        table.add_columns(*self.COLUMNS)
         self._entries: list[HistoryEntry] = []
+        self._sort_column: str | None = "Date"
+        self._sort_reverse: bool = True  # newest first by default
+        self._search_query: str = ""
         self.refresh_table()
         table.focus()
 
+    # ── Column sorting ───────────────────────────────────────────────────────
+
+    @on(DataTable.HeaderSelected, "#hist-table")
+    def on_header_selected(self, event: DataTable.HeaderSelected) -> None:
+        """Handle column header click for sorting."""
+        col_idx = event.column_index
+        if col_idx < 0 or col_idx >= len(self.COLUMNS):
+            return
+        col_name = self.COLUMNS[col_idx]
+
+        if self._sort_column == col_name:
+            self._sort_reverse = not self._sort_reverse
+        else:
+            self._sort_column = col_name
+            self._sort_reverse = False
+
+        self.refresh_table(self._search_query)
+
+    def _sort_entries(self, entries: list[HistoryEntry]) -> list[HistoryEntry]:
+        """Sort entries based on current sort state."""
+        col = self._sort_column
+        if col is None:
+            return entries
+
+        if col == "Date":
+            key = lambda e: e.date or ""
+        elif col == "Title":
+            key = lambda e: (e.title or "").lower()
+        elif col == "URL":
+            key = lambda e: (e.url or "").lower()
+        elif col == "Format":
+            key = lambda e: (e.format_id or "").lower()
+        elif col == "File":
+            key = lambda e: (e.file_path or "").lower()
+        elif col == "Status":
+            key = lambda e: (e.status or "").lower()
+        elif col == "Size":
+            key = lambda e: e.filesize or 0
+        else:
+            key = lambda e: ""
+
+        rev = self._sort_reverse
+        return sorted(entries, key=key, reverse=rev)
+
+    def _build_column_headers(self) -> list[str]:
+        """Return column labels with sort indicators."""
+        headers = list(self.COLUMNS)
+        if self._sort_column:
+            arrow = " ▼" if self._sort_reverse else " ▲"
+            for i, h in enumerate(headers):
+                if h == self._sort_column:
+                    headers[i] = h + arrow
+        return headers
+
+    # ── Table refresh ────────────────────────────────────────────────────────
+
     def refresh_table(self, query: str = "") -> None:
-        store = self.app.history  # type: ignore[attr-defined]
+        store = self._app.history
+        self._search_query = query
         if query.strip():
             entries = store.search(query)
         else:
             entries = store.to_list()
+        entries = self._sort_entries(entries)
+        self._entries = entries
+
         table = self.query_one("#hist-table", DataTable)
-        table.clear()
+        table.clear(columns=False)
+
+        # Update column labels with sort indicators
+        new_headers = self._build_column_headers()
+        for i, h in enumerate(new_headers):
+            table.ordered_columns[i].label = h  # type: ignore[union-attr]
+
         for e in entries:
             date = e.date[:19].replace("T", " ") if e.date else "—"
             table.add_row(
@@ -115,10 +225,13 @@ class HistoryScreen(Screen):
                 (e.format_id or "—")[:10],
                 (e.file_path or "—")[:28],
                 e.status,
+                _format_size(e.filesize),
             )
         self.query_one("#hist-detail", Label).update(
             f"{len(entries)} entr{'y' if len(entries) == 1 else 'ies'}"
         )
+
+    # ── Search ────────────────────────────────────────────────────────────────
 
     @on(Input.Changed, "#hist-search")
     def on_search(self, event: Input.Changed) -> None:
@@ -145,6 +258,66 @@ class HistoryScreen(Screen):
                 detail += f" · {entry.file_path}"
             self.query_one("#hist-detail", Label).update(detail[:120])
 
+    # ── Post-download actions ────────────────────────────────────────────────
+
+    @on(Button.Pressed, "#btn-open-file")
+    def action_open_file(self) -> None:
+        """Open the downloaded file with the system default application."""
+        entry = self._selected_entry()
+        if entry is None:
+            self.notify("Select a history entry first.", severity="warning")
+            return
+        file_path = entry.file_path
+        if not file_path or not Path(file_path).exists():
+            self.notify("File not found on disk.", severity="error")
+            return
+        try:
+            _open_with_system(file_path)
+            self.notify(f"Opening: {Path(file_path).name}", severity="information")
+        except Exception as exc:
+            self.notify(f"Could not open file: {exc}", severity="error")
+
+    @on(Button.Pressed, "#btn-open-folder")
+    def action_open_folder(self) -> None:
+        """Open the containing directory in the file manager."""
+        entry = self._selected_entry()
+        if entry is None:
+            self.notify("Select a history entry first.", severity="warning")
+            return
+        file_path = entry.file_path
+        if not file_path:
+            self.notify("No file path recorded.", severity="warning")
+            return
+        folder = str(Path(file_path).parent)
+        if not Path(folder).is_dir():
+            self.notify("Containing folder not found.", severity="error")
+            return
+        try:
+            _open_with_system(folder)
+            self.notify(f"Opening folder: {folder}", severity="information")
+        except Exception as exc:
+            self.notify(f"Could not open folder: {exc}", severity="error")
+
+    @on(Button.Pressed, "#btn-copy-path")
+    def action_copy_path(self) -> None:
+        """Copy the file path to clipboard."""
+        entry = self._selected_entry()
+        if entry is None:
+            self.notify("Select a history entry first.", severity="warning")
+            return
+        file_path = entry.file_path
+        if not file_path:
+            self.notify("No file path recorded.", severity="warning")
+            return
+        try:
+            self.app.copy_to_clipboard(file_path)
+            self.notify("File path copied to clipboard.", severity="information")
+        except Exception:
+            self.query_one("#hist-detail", Label).update(f"Path: {file_path}"[:150])
+            self.notify("Clipboard unavailable; path shown below.", severity="warning")
+
+    # ── Re-download ──────────────────────────────────────────────────────────
+
     @on(Button.Pressed, "#btn-redownload")
     def action_redownload(self) -> None:
         entry = self._selected_entry()
@@ -162,7 +335,7 @@ class HistoryScreen(Screen):
             self.notify, f"Fetching {entry.url[:40]}…", severity="information"
         )
         try:
-            meta = extract_formats(entry.url, timeout=30)
+            meta = extract_formats(entry.url, timeout=FORMAT_TIMEOUT)
             if not meta.formats:
                 self.app.call_from_thread(
                     self.notify, "No formats available for this video.", severity="error"
@@ -183,6 +356,8 @@ class HistoryScreen(Screen):
 
         self.app.call_from_thread(_push)
 
+    # ── Copy info ────────────────────────────────────────────────────────────
+
     @on(Button.Pressed, "#btn-copy")
     def action_copy_info(self) -> None:
         entry = self._selected_entry()
@@ -195,19 +370,21 @@ class HistoryScreen(Screen):
             f"Format: {entry.format_id}\n"
             f"Path: {entry.file_path}\n"
             f"Status: {entry.status}\n"
-            f"Date: {entry.date}"
+            f"Date: {entry.date}\n"
+            f"Size: {_format_size(entry.filesize)}"
         )
         try:
             self.app.copy_to_clipboard(text)
             self.notify("Copied to clipboard.", severity="information")
         except Exception:
-            # Fallback: show in detail
             self.query_one("#hist-detail", Label).update(text.replace("\n", " · ")[:150])
             self.notify("Clipboard unavailable; details shown below.", severity="warning")
 
+    # ── Clear / Back ─────────────────────────────────────────────────────────
+
     @on(Button.Pressed, "#btn-clear")
     def on_clear(self) -> None:
-        self.app.history.clear()  # type: ignore[attr-defined]
+        self._app.history.clear()
         self.refresh_table()
         self.notify("History cleared.", severity="information")
 

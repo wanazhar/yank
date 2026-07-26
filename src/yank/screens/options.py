@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from yank.app import YankApp
+
 from pathlib import Path
 
 from textual import on, work
@@ -17,15 +22,23 @@ from textual.widgets import (
     Input,
     Label,
     Select,
-    Static,
 )
 
+from yank.constants import FORMAT_TIMEOUT
 from yank.engine.downloader import DownloadItem, DownloadOptions
 from yank.engine.formats import FormatInfo, VideoMeta, format_selector_for
+from yank.logging import get_logger
+
+_logger = get_logger(__name__)
 
 
 class OptionsScreen(Screen):
     """Configure output path, template, thumbnails, subs, audio extract, etc."""
+
+    @property
+    def _app(self) -> YankApp:  # type: ignore[name-defined]
+        """Narrow ``self.app`` to the known ``YankApp`` subtype."""
+        return cast("YankApp", self.app)
 
     BINDINGS = [
         Binding("escape", "go_back", "Back", show=True),
@@ -73,15 +86,6 @@ class OptionsScreen(Screen):
     .hidden {
         display: none;
     }
-    Input {
-        border: solid #06b6d4;
-        background: #0a0a0f;
-        color: #e2e8f0;
-    }
-    Input:focus {
-        border: solid #06b6d4;
-        background: #0a0a0f;
-    }
     """
 
     def __init__(
@@ -100,7 +104,7 @@ class OptionsScreen(Screen):
         self.remaining_urls = remaining_urls or []
 
     def compose(self) -> ComposeResult:
-        cfg = self.app.config  # type: ignore[attr-defined]
+        cfg = self._app.config
         has_subs = self.meta.has_subtitles
         sub_langs = self.meta.available_subtitle_langs
 
@@ -210,7 +214,7 @@ class OptionsScreen(Screen):
                 try:
                     self.query_one(f"#{wid}").add_class("hidden")
                 except Exception:
-                    pass
+                    _logger.debug("Failed to hide widget %s", wid, exc_info=True)
 
     @on(Checkbox.Changed, "#opt-audio-only")
     def on_audio_only_changed(self, event: Checkbox.Changed) -> None:
@@ -226,13 +230,13 @@ class OptionsScreen(Screen):
                 else:
                     w.add_class("hidden")
         except Exception:
-            pass
+            _logger.debug("Failed to update audio visibility", exc_info=True)
 
     def _build_options(self) -> DownloadOptions | None:
         if self.selected_format is None:
             self.query_one("#opt-error", Label).update("No format selected.")
             return None
-        cfg = self.app.config  # type: ignore[attr-defined]
+        cfg = self._app.config
         outdir = self.query_one("#opt-outdir", Input).value.strip()
         if not outdir:
             outdir = cfg.download_dir
@@ -269,7 +273,7 @@ class OptionsScreen(Screen):
             if af and af != Select.BLANK:
                 audio_format = str(af)
         except Exception:
-            pass
+            _logger.debug("Failed to read audio format select", exc_info=True)
 
         custom = self.query_one("#opt-custom-fmt", Input).value.strip() or None
         selector = format_selector_for(
@@ -310,11 +314,10 @@ class OptionsScreen(Screen):
         if opts is None:
             return
         item = self._make_item(opts)
-        app = self.app
-        app.queue.add(item)  # type: ignore[attr-defined]
+        self._app.queue.add(item)
         # Start only the newly added item, not all queued items
-        app.manager.start(item.id)  # type: ignore[attr-defined]
-        app.refresh_status_bar()  # type: ignore[attr-defined]
+        self._app.manager.start(item.id)
+        self._app.refresh_status_bar()
 
         # Enqueue remaining batch URLs with same options (best effort async)
         if self.remaining_urls:
@@ -330,8 +333,8 @@ class OptionsScreen(Screen):
         if opts is None:
             return
         item = self._make_item(opts)
-        self.app.queue.add(item)  # type: ignore[attr-defined]
-        self.app.refresh_status_bar()  # type: ignore[attr-defined]
+        self._app.queue.add(item)  
+        self._app.refresh_status_bar()  
         if self.remaining_urls:
             self._enqueue_remaining(list(self.remaining_urls), opts)
         self.notify(f"Added to queue: {item.title[:40]}", severity="information")
@@ -345,7 +348,7 @@ class OptionsScreen(Screen):
 
         for url in urls:
             try:
-                meta = extract_formats(url, timeout=30)
+                meta = extract_formats(url, timeout=FORMAT_TIMEOUT)
                 if not meta.formats:
                     self.app.call_from_thread(
                         self.notify, f"Batch skip: No formats for {url[:40]}", severity="warning"
@@ -384,8 +387,8 @@ class OptionsScreen(Screen):
                 )
 
                 def _add(it=item):
-                    self.app.queue.add(it)  # type: ignore[attr-defined]
-                    self.app.refresh_status_bar()  # type: ignore[attr-defined]
+                    self._app.queue.add(it)  
+                    self._app.refresh_status_bar()  
 
                 self.app.call_from_thread(_add)
             except FormatExtractError as exc:
