@@ -1,10 +1,10 @@
-
 """Tests for round-8 audit: UI/UX fixes — history search, queue timer, redundant code."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 
 # ── U11: History refresh no longer calls store.load() ────────────────────────
 
@@ -22,9 +22,7 @@ class TestHistoryRefreshNoDiskLoad:
             elif in_refresh and line.strip().startswith("def "):
                 in_refresh = False
             elif in_refresh and "store.load()" in line:
-                pytest.fail(
-                    f"store.load() still present in refresh_table: {line.strip()}"
-                )
+                pytest.fail(f"store.load() still present in refresh_table: {line.strip()}")
 
 
 # ── U22: Queue timer pauses when screen not active ──────────────────────────
@@ -36,9 +34,7 @@ class TestQueueTimerGuarded:
     def test_tick_refresh_method_exists(self):
         """Verify _tick_refresh method exists and checks screen visibility."""
         source = Path("src/yank/screens/queue.py").read_text()
-        assert "def _tick_refresh" in source, (
-            "_tick_refresh method missing from QueueScreen"
-        )
+        assert "def _tick_refresh" in source, "_tick_refresh method missing from QueueScreen"
         assert "self.app.screen is self" in source, (
             "_tick_refresh should check self.app.screen is self"
         )

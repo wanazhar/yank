@@ -68,13 +68,13 @@ def _notify_windows(title: str, body: str) -> bool:
     or fall back to ``msg`` / ``wscript``."""
     # Try PowerShell toast via BurntToast if available
     ps_script = (
-        f'[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; '
-        f'$template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent('
-        f'[Windows.UI.Notifications.ToastTemplateType]::ToastText02); '
+        f"[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null; "
+        f"$template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent("
+        f"[Windows.UI.Notifications.ToastTemplateType]::ToastText02); "
         f'$textNodes = $template.GetElementsByTagName("text"); '
         f'$textNodes.Item(0).AppendChild($template.CreateTextNode("{_escape_powershell(title)}")) > $null; '
         f'$textNodes.Item(1).AppendChild($template.CreateTextNode("{_escape_powershell(body)}")) > $null; '
-        f'$toast = [Windows.UI.Notifications.ToastNotification]::new($template); '
+        f"$toast = [Windows.UI.Notifications.ToastNotification]::new($template); "
         f'[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("yank").Show($toast)'
     )
     try:

@@ -1,4 +1,3 @@
-
 """Tests for round-2 audit fixes: start() guards, cancel_all pumping, type coercion."""
 
 from __future__ import annotations
@@ -19,7 +18,6 @@ from yank.engine.downloader import (
 )
 from yank.engine.queue import (
     QueueEngine,
-    QueueItem,
 )
 from yank.models.config import AppConfig
 
@@ -91,7 +89,7 @@ class TestStartTerminalGuard:
         results = []
 
         def racy_start():
-            item = manager.get(dl_item.id)
+            manager.get(dl_item.id)
             # At this point, the other thread cancels
             cancel_done.set()
             # Wait for cancel to complete before proceeding
@@ -132,12 +130,16 @@ class TestStartLockDiscipline:
         mgr = DownloadManager(config)
 
         item1 = DownloadItem.create(
-            url="https://example.com/1", title="V1",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/1",
+            title="V1",
+            format_id="22",
+            options=DownloadOptions(),
         )
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="V2",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/2",
+            title="V2",
+            format_id="22",
+            options=DownloadOptions(),
         )
         mgr.register(item1)
         mgr.register(item2)
@@ -159,11 +161,9 @@ class TestStartLockDiscipline:
         # Only one should be DOWNLOADING (or started), the other QUEUED
         i1 = mgr.get(item1.id)
         i2 = mgr.get(item2.id)
-        statuses = {i1.status, i2.status}
         # At most one DOWNLOADING; other is QUEUED (or both errored quickly)
         downloading_count = sum(
-            1 for s in (i1.status, i2.status)
-            if s == DownloadStatus.DOWNLOADING
+            1 for s in (i1.status, i2.status) if s == DownloadStatus.DOWNLOADING
         )
         assert downloading_count <= 1
 
@@ -188,8 +188,10 @@ class TestCancelAllNoMidPump:
         dl_item.status = DownloadStatus.DOWNLOADING
         manager.register(dl_item)
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="V2",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/2",
+            title="V2",
+            format_id="22",
+            options=DownloadOptions(),
         )
         item2.status = DownloadStatus.QUEUED
         manager.register(item2)
@@ -283,13 +285,15 @@ class TestQueueTypeCoercion:
         """Manually-edited JSON with non-string custom_format is coerced."""
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "queue.json"
-            data = [{
-                "id": "test1",
-                "url": "https://example.com",
-                "title": "Test",
-                "format_id": "22",
-                "custom_format": 123,
-            }]
+            data = [
+                {
+                    "id": "test1",
+                    "url": "https://example.com",
+                    "title": "Test",
+                    "format_id": "22",
+                    "custom_format": 123,
+                }
+            ]
             path.write_text(json.dumps(data))
             qe = QueueEngine(config, manager, path=path)
             qe.load()
@@ -300,13 +304,15 @@ class TestQueueTypeCoercion:
         """Manually-edited JSON with string subtitle_langs is coerced."""
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "queue.json"
-            data = [{
-                "id": "test1",
-                "url": "https://example.com",
-                "title": "Test",
-                "format_id": "22",
-                "subtitle_langs": "en",
-            }]
+            data = [
+                {
+                    "id": "test1",
+                    "url": "https://example.com",
+                    "title": "Test",
+                    "format_id": "22",
+                    "subtitle_langs": "en",
+                }
+            ]
             path.write_text(json.dumps(data))
             qe = QueueEngine(config, manager, path=path)
             qe.load()
@@ -326,6 +332,7 @@ class TestBuildOptionsNoneGuard:
         # but we can verify the import doesn't crash and the guard
         # is present by reading the source.
         from pathlib import Path
+
         source = Path("src/yank/screens/options.py").read_text()
         assert "if self.selected_format is None:" in source
         assert '"No format selected."' in source

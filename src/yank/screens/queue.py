@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 if TYPE_CHECKING:
     from yank.app import YankApp
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Label
 
@@ -26,11 +26,11 @@ class QueueScreen(Screen):
     """Tab/panel showing all queued downloads with reorder and batch controls."""
 
     @property
-    def _app(self) -> YankApp:  # type: ignore[name-defined]
+    def _app(self) -> YankApp:
         """Narrow ``self.app`` to the known ``YankApp`` subtype."""
         return cast("YankApp", self.app)
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("escape", "go_back", "Back", show=True),
         Binding("delete", "remove_item", "Remove", show=True),
         Binding("u", "move_up", "Move up", show=True),
@@ -122,9 +122,7 @@ class QueueScreen(Screen):
             status = qi.status
             if di:
                 status = (
-                    di.status.value
-                    if isinstance(di.status, DownloadStatus)
-                    else str(di.status)
+                    di.status.value if isinstance(di.status, DownloadStatus) else str(di.status)
                 )
                 if di.status == DownloadStatus.DOWNLOADING:
                     status = f"dl {di.progress.percent:.0f}%"
@@ -152,7 +150,7 @@ class QueueScreen(Screen):
             )
         except Exception:
             _logger.debug("Failed to update queue summary widget", exc_info=True)
-        self._app.refresh_status_bar()  
+        self._app.refresh_status_bar()
 
     def _selected_id(self) -> str | None:
         table = self.query_one("#q-table", DataTable)
@@ -170,20 +168,20 @@ class QueueScreen(Screen):
         except Exception:
             _logger.debug("coordinate_to_cell_key failed for row %s", row, exc_info=True)
         # Fallback via queue order
-        items = self._app.queue.get_items()  
+        items = self._app.queue.get_items()
         if 0 <= (row or 0) < len(items):
             return items[row].id
         return None
 
     @on(Button.Pressed, "#btn-start")
     def action_start_all(self) -> None:
-        self._app.queue.start_all()  
+        self._app.queue.start_all()
         self.refresh_table()
         self.notify("Started queue.", severity="information")
 
     @on(Button.Pressed, "#btn-pause")
     def action_pause_all(self) -> None:
-        self._app.queue.pause_all()  
+        self._app.queue.pause_all()
         self.refresh_table()
         self.notify("Paused all downloads.", severity="information")
 
@@ -193,7 +191,7 @@ class QueueScreen(Screen):
         if not item_id:
             self.notify("Select an item first.", severity="warning")
             return
-        self._app.queue.remove(item_id)  
+        self._app.queue.remove(item_id)
         self.refresh_table()
 
     @on(Button.Pressed, "#btn-up")
@@ -201,7 +199,7 @@ class QueueScreen(Screen):
         item_id = self._selected_id()
         if not item_id:
             return
-        self._app.queue.move_up(item_id)  
+        self._app.queue.move_up(item_id)
         self.refresh_table()
         # Move cursor up
         table = self.query_one("#q-table", DataTable)
@@ -213,7 +211,7 @@ class QueueScreen(Screen):
         item_id = self._selected_id()
         if not item_id:
             return
-        self._app.queue.move_down(item_id)  
+        self._app.queue.move_down(item_id)
         self.refresh_table()
         table = self.query_one("#q-table", DataTable)
         if table.cursor_row is not None and table.cursor_row < table.row_count - 1:
@@ -221,7 +219,7 @@ class QueueScreen(Screen):
 
     @on(Button.Pressed, "#btn-clear")
     def on_clear(self) -> None:
-        self._app.queue.clear_finished()  
+        self._app.queue.clear_finished()
         self.refresh_table()
 
     @on(Button.Pressed, "#btn-downloads")

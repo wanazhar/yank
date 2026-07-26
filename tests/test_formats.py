@@ -2,18 +2,15 @@
 
 from __future__ import annotations
 
-import pytest
-
 from yank.engine.formats import (
     FormatInfo,
     VideoMeta,
+    _humanize_ytdlp_error,
+    _parse_format,
     detect_platform,
     format_selector_for,
     is_valid_url,
     pick_best_format,
-    _humanize_ytdlp_error,
-    _parse_format,
-    _sort_key,
 )
 
 

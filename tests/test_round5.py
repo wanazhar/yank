@@ -1,4 +1,3 @@
-
 """Tests for round-5 audit: QueueEngine.load() safe coercion, format table edge cases."""
 
 from __future__ import annotations
@@ -10,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from yank._safe_types import _coerce_float, _coerce_int
-from yank.engine.downloader import DownloadManager, DownloadOptions
+from yank.engine.downloader import DownloadManager
 from yank.engine.queue import (
     QueueEngine,
 )
@@ -36,13 +35,15 @@ class TestSafeCoercionLoad:
         """A non-numeric created_at should fall back to current time, not skip."""
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "queue.json"
-            data = [{
-                "id": "test-bad-ts",
-                "url": "https://example.com",
-                "title": "Test",
-                "format_id": "22",
-                "created_at": "yesterday",
-            }]
+            data = [
+                {
+                    "id": "test-bad-ts",
+                    "url": "https://example.com",
+                    "title": "Test",
+                    "format_id": "22",
+                    "created_at": "yesterday",
+                }
+            ]
             path.write_text(json.dumps(data))
             qe = QueueEngine(config, manager, path=path)
             qe.load()
@@ -55,13 +56,15 @@ class TestSafeCoercionLoad:
         """A non-numeric order should fall back to index, not skip."""
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "queue.json"
-            data = [{
-                "id": "test-bad-order",
-                "url": "https://example.com",
-                "title": "Test",
-                "format_id": "22",
-                "order": "first",
-            }]
+            data = [
+                {
+                    "id": "test-bad-order",
+                    "url": "https://example.com",
+                    "title": "Test",
+                    "format_id": "22",
+                    "order": "first",
+                }
+            ]
             path.write_text(json.dumps(data))
             qe = QueueEngine(config, manager, path=path)
             qe.load()
@@ -74,13 +77,15 @@ class TestSafeCoercionLoad:
         """null created_at falls back to current time."""
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "queue.json"
-            data = [{
-                "id": "test-null-ts",
-                "url": "https://example.com",
-                "title": "Test",
-                "format_id": "22",
-                "created_at": None,
-            }]
+            data = [
+                {
+                    "id": "test-null-ts",
+                    "url": "https://example.com",
+                    "title": "Test",
+                    "format_id": "22",
+                    "created_at": None,
+                }
+            ]
             path.write_text(json.dumps(data))
             qe = QueueEngine(config, manager, path=path)
             qe.load()
@@ -162,18 +167,22 @@ class TestHistoryFilesizeCoercion:
         """Non-numeric filesize falls back to 0, entry preserved."""
         with tempfile.TemporaryDirectory() as td:
             from pathlib import Path
+
             path = Path(td) / "history.json"
-            data = [{
-                "date": "2024-01-01",
-                "title": "Test",
-                "url": "https://x.com",
-                "format_id": "22",
-                "file_path": "/tmp/v.mp4",
-                "status": "success",
-                "filesize": "unknown",
-            }]
+            data = [
+                {
+                    "date": "2024-01-01",
+                    "title": "Test",
+                    "url": "https://x.com",
+                    "format_id": "22",
+                    "file_path": "/tmp/v.mp4",
+                    "status": "success",
+                    "filesize": "unknown",
+                }
+            ]
             path.write_text(json.dumps(data))
             from yank.models.history import HistoryStore
+
             store = HistoryStore(path=path)
             store.load()
             entries = store.to_list()
@@ -184,18 +193,22 @@ class TestHistoryFilesizeCoercion:
         """Valid filesize is preserved."""
         with tempfile.TemporaryDirectory() as td:
             from pathlib import Path
+
             path = Path(td) / "history.json"
-            data = [{
-                "date": "2024-01-01",
-                "title": "Test",
-                "url": "https://x.com",
-                "format_id": "22",
-                "file_path": "/tmp/v.mp4",
-                "status": "success",
-                "filesize": 12345678,
-            }]
+            data = [
+                {
+                    "date": "2024-01-01",
+                    "title": "Test",
+                    "url": "https://x.com",
+                    "format_id": "22",
+                    "file_path": "/tmp/v.mp4",
+                    "status": "success",
+                    "filesize": 12345678,
+                }
+            ]
             path.write_text(json.dumps(data))
             from yank.models.history import HistoryStore
+
             store = HistoryStore(path=path)
             store.load()
             entries = store.to_list()
@@ -205,18 +218,22 @@ class TestHistoryFilesizeCoercion:
         """null filesize defaults to 0."""
         with tempfile.TemporaryDirectory() as td:
             from pathlib import Path
+
             path = Path(td) / "history.json"
-            data = [{
-                "date": "2024-01-01",
-                "title": "Test",
-                "url": "https://x.com",
-                "format_id": "22",
-                "file_path": "/tmp/v.mp4",
-                "status": "success",
-                "filesize": None,
-            }]
+            data = [
+                {
+                    "date": "2024-01-01",
+                    "title": "Test",
+                    "url": "https://x.com",
+                    "format_id": "22",
+                    "file_path": "/tmp/v.mp4",
+                    "status": "success",
+                    "filesize": None,
+                }
+            ]
             path.write_text(json.dumps(data))
             from yank.models.history import HistoryStore
+
             store = HistoryStore(path=path)
             store.load()
             entries = store.to_list()
@@ -235,17 +252,13 @@ class TestQueryOneThreadSafety:
         # The old pattern: call_from_thread(\n            self.query_one
         # Should now be: call_from_thread(\n            lambda:
         bad = "call_from_thread(\n            self.query_one"
-        assert bad not in source, (
-            "Direct query_one found in call_from_thread — should use lambda"
-        )
+        assert bad not in source, "Direct query_one found in call_from_thread — should use lambda"
 
     def test_settings_uses_lambda_not_direct_query(self):
         """Verify settings worker methods use lambda wrappers."""
         source = Path("src/yank/screens/settings.py").read_text()
         bad = "call_from_thread(\n            self.query_one"
-        assert bad not in source, (
-            "Direct query_one found in call_from_thread in settings.py"
-        )
+        assert bad not in source, "Direct query_one found in call_from_thread in settings.py"
 
 
 # ── G4: ensure_download_dir removed ────────────────────────────────────────

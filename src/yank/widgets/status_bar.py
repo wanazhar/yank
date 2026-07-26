@@ -62,20 +62,20 @@ class StatusBar(Widget):
 
     def on_mount(self) -> None:
         self.refresh_disk()
-        self._render()
+        self._refresh_display()
 
     def watch_ytdlp_version(self, _value: str) -> None:
-        self._render()
+        self._refresh_display()
 
     def watch_queue_size(self, _value: int) -> None:
-        self._render()
+        self._refresh_display()
 
     def watch_download_dir(self, _value: str) -> None:
         self.refresh_disk()
-        self._render()
+        self._refresh_display()
 
     def watch_notification(self, _value: str) -> None:
-        self._render()
+        self._refresh_display()
 
     def refresh_disk(self) -> None:
         self._disk_display = _disk_free(self.download_dir or str(Path.home()))
@@ -99,14 +99,10 @@ class StatusBar(Widget):
         self.refresh_disk()
         self._render()
 
-    def _render(self) -> None:
+    def _refresh_display(self) -> None:
         try:
-            self.query_one("#sb-left", Label).update(
-                f"yt-dlp {self.ytdlp_version}"
-            )
-            self.query_one("#sb-mid", Label).update(
-                f"queue: {self.queue_size}"
-            )
+            self.query_one("#sb-left", Label).update(f"yt-dlp {self.ytdlp_version}")
+            self.query_one("#sb-mid", Label).update(f"queue: {self.queue_size}")
             disk = getattr(self, "_disk_display", "—")
             self.query_one("#sb-right", Label).update(f"disk: {disk}")
             self.query_one("#sb-notify", Label).update(self.notification or "")

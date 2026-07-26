@@ -1,11 +1,9 @@
-
 """Tests for DownloadManager thread safety, error sanitization, and lock discipline."""
 
 from __future__ import annotations
 
 import threading
 import time
-from pathlib import Path
 
 import pytest
 
@@ -15,8 +13,8 @@ from yank.engine.downloader import (
     DownloadOptions,
     DownloadProgress,
     DownloadStatus,
-    _humanize_download_error,
     _human_rate,
+    _humanize_download_error,
 )
 from yank.models.config import AppConfig
 
@@ -126,15 +124,19 @@ class TestConcurrencyLimit:
         mgr = DownloadManager(config)
 
         item1 = DownloadItem.create(
-            url="https://example.com/1", title="Video 1",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/1",
+            title="Video 1",
+            format_id="22",
+            options=DownloadOptions(),
         )
         item1.status = DownloadStatus.DOWNLOADING
         mgr.register(item1)
 
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="Video 2",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/2",
+            title="Video 2",
+            format_id="22",
+            options=DownloadOptions(),
         )
         mgr.register(item2)
         mgr.start(item2.id)
@@ -148,8 +150,10 @@ class TestConcurrencyLimit:
         mgr = DownloadManager(config)
 
         item1 = DownloadItem.create(
-            url="https://example.com/1", title="Video 1",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/1",
+            title="Video 1",
+            format_id="22",
+            options=DownloadOptions(),
         )
         mgr.register(item1)
         mgr.start(item1.id)
@@ -214,8 +218,10 @@ class TestConcurrentCancelStart:
 
         # Re-register fresh item
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="Video 2",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/2",
+            title="Video 2",
+            format_id="22",
+            options=DownloadOptions(),
         )
         manager.register(item2)
         # Start then immediately cancel
@@ -354,9 +360,7 @@ class TestHumanizeDownloadError:
 
     def test_path_stripping_unix(self):
         """Unix-style paths should be stripped from fallback message."""
-        msg = _humanize_download_error(
-            "Unable to write to /home/user/Downloads/video.mp4"
-        )
+        msg = _humanize_download_error("Unable to write to /home/user/Downloads/video.mp4")
         assert "/home/user" not in msg
 
     def test_fallback_returns_string(self):
@@ -434,30 +438,38 @@ class TestDownloadProgress:
 class TestDownloadItem:
     def test_create_sets_id(self):
         item = DownloadItem.create(
-            url="https://example.com", title="Test",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com",
+            title="Test",
+            format_id="22",
+            options=DownloadOptions(),
         )
         assert len(item.id) == 12
         assert item.title == "Test"
 
     def test_create_defaults_title(self):
         item = DownloadItem.create(
-            url="https://example.com", title="",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com",
+            title="",
+            format_id="22",
+            options=DownloadOptions(),
         )
         assert item.title == "Unknown"
 
     def test_default_status(self):
         item = DownloadItem.create(
-            url="https://example.com", title="Test",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com",
+            title="Test",
+            format_id="22",
+            options=DownloadOptions(),
         )
         assert item.status == DownloadStatus.PENDING
 
     def test_created_at_is_recent(self):
         item = DownloadItem.create(
-            url="https://example.com", title="Test",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com",
+            title="Test",
+            format_id="22",
+            options=DownloadOptions(),
         )
         assert abs(item.created_at - time.time()) < 5.0
 
@@ -515,6 +527,7 @@ class TestMockedYoutubeDL:
         mgr.start(item.id)
 
         import time
+
         time.sleep(0.5)
 
         final = mgr.get(item.id)
@@ -524,6 +537,7 @@ class TestMockedYoutubeDL:
 
     def test_run_download_error(self, config, monkeypatch):
         """An exception in extract_info transitions to ERROR."""
+
         class FakeYDL:
             def __init__(self, opts):
                 self.opts = opts
@@ -538,6 +552,7 @@ class TestMockedYoutubeDL:
                 raise RuntimeError("HTTP Error 404: Not Found")
 
         import yt_dlp
+
         monkeypatch.setattr(yt_dlp, "YoutubeDL", FakeYDL)
 
         mgr = DownloadManager(config)
@@ -552,12 +567,12 @@ class TestMockedYoutubeDL:
         mgr.start(item.id)
 
         import time
+
         time.sleep(0.5)
 
         final = mgr.get(item.id)
         assert final.status == DownloadStatus.ERROR
         assert "not found" in final.error.lower()
-
 
     def test_progress_hook_downloading(self, config):
         """Progress hook with 'downloading' status updates DownloadProgress."""
@@ -667,7 +682,6 @@ class TestMockedYoutubeDL:
         assert updated.status == DownloadStatus.ERROR
         assert updated.progress.status_text == "Error"
 
-
     def test_progress_hook_cancel_flag_raises(self, config):
         """Progress hook raises _CancelDownload when cancel flag is set."""
         import threading
@@ -710,6 +724,7 @@ class TestMockedYoutubeDL:
 
     def test_pause_all_sets_downloading_to_paused(self, config, monkeypatch):
         """pause_all transitions DOWNLOADING items to PAUSED."""
+
         class FakeYDL:
             def __init__(self, opts):
                 self.opts = opts
@@ -722,22 +737,28 @@ class TestMockedYoutubeDL:
 
             def extract_info(self, url, download=True):
                 import time
+
                 time.sleep(0.2)
                 return {"title": "Test", "_filename": "/tmp/out.mp4"}
 
         import yt_dlp
+
         monkeypatch.setattr(yt_dlp, "YoutubeDL", FakeYDL)
 
         mgr = DownloadManager(config)
         mgr._pump_queue = lambda: None
 
         item1 = DownloadItem.create(
-            url="https://example.com/1", title="V1",
-            format_id="22", options=DownloadOptions(output_dir="/tmp/yank-test-dl"),
+            url="https://example.com/1",
+            title="V1",
+            format_id="22",
+            options=DownloadOptions(output_dir="/tmp/yank-test-dl"),
         )
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="V2",
-            format_id="22", options=DownloadOptions(output_dir="/tmp/yank-test-dl"),
+            url="https://example.com/2",
+            title="V2",
+            format_id="22",
+            options=DownloadOptions(output_dir="/tmp/yank-test-dl"),
         )
         mgr.register(item1)
         mgr.register(item2)
@@ -747,13 +768,18 @@ class TestMockedYoutubeDL:
         mgr.start(item2.id)
 
         import time
+
         time.sleep(0.05)
         mgr.pause_all()
 
         i1 = mgr.get(item1.id)
         i2 = mgr.get(item2.id)
         assert i1.status == DownloadStatus.PAUSED
-        assert i2.status in (DownloadStatus.PAUSED, DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED)
+        assert i2.status in (
+            DownloadStatus.PAUSED,
+            DownloadStatus.DOWNLOADING,
+            DownloadStatus.QUEUED,
+        )
 
     def test_cancel_all_pumps_queue(self, config):
         """cancel_all should trigger _pump_queue."""
@@ -769,8 +795,10 @@ class TestMockedYoutubeDL:
         mgr._pump_queue = counting_pump
 
         item = DownloadItem.create(
-            url="https://example.com/video", title="Test",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/video",
+            title="Test",
+            format_id="22",
+            options=DownloadOptions(),
         )
         mgr.register(item)
 
@@ -780,12 +808,16 @@ class TestMockedYoutubeDL:
         mgr = DownloadManager(config)
 
         item1 = DownloadItem.create(
-            url="https://example.com/1", title="V1",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/1",
+            title="V1",
+            format_id="22",
+            options=DownloadOptions(),
         )
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="V2",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/2",
+            title="V2",
+            format_id="22",
+            options=DownloadOptions(),
         )
         mgr.register(item1)
         mgr.register(item2)
@@ -798,6 +830,7 @@ class TestMockedYoutubeDL:
 
     def test_pump_queue_starts_queued_item(self, config, monkeypatch):
         """_pump_queue starts a queued item when a slot opens."""
+
         class FakeYDL:
             def __init__(self, opts):
                 self.opts = opts
@@ -810,10 +843,12 @@ class TestMockedYoutubeDL:
 
             def extract_info(self, url, download=True):
                 import time
+
                 time.sleep(0.1)
                 return {"title": "Test", "_filename": "/tmp/out.mp4"}
 
         import yt_dlp
+
         monkeypatch.setattr(yt_dlp, "YoutubeDL", FakeYDL)
 
         config.max_concurrent = 1
@@ -822,12 +857,16 @@ class TestMockedYoutubeDL:
         orig_pump = mgr._pump_queue
 
         item1 = DownloadItem.create(
-            url="https://example.com/1", title="V1",
-            format_id="22", options=DownloadOptions(output_dir="/tmp/yank-test-dl"),
+            url="https://example.com/1",
+            title="V1",
+            format_id="22",
+            options=DownloadOptions(output_dir="/tmp/yank-test-dl"),
         )
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="V2",
-            format_id="22", options=DownloadOptions(output_dir="/tmp/yank-test-dl"),
+            url="https://example.com/2",
+            title="V2",
+            format_id="22",
+            options=DownloadOptions(output_dir="/tmp/yank-test-dl"),
         )
         mgr.register(item1)
         mgr.register(item2)
@@ -836,6 +875,7 @@ class TestMockedYoutubeDL:
         mgr._pump_queue = lambda: None
         mgr.start(item1.id)
         import time
+
         time.sleep(0.05)
 
         # Now item1 is DOWNLOADING, item2 should queue
@@ -859,21 +899,15 @@ class TestMockedYoutubeDL:
 
 class TestHumanizeDownloadErrorExtended:
     def test_permission_denied(self):
-        msg = _humanize_download_error(
-            "ERROR: [Errno 13] Permission denied: '/root/file.mp4'"
-        )
+        msg = _humanize_download_error("ERROR: [Errno 13] Permission denied: '/root/file.mp4'")
         assert "permission denied" in msg.lower()
 
     def test_disk_full_errno_28(self):
-        msg = _humanize_download_error(
-            "OSError: [Errno 28] No space left on device"
-        )
+        msg = _humanize_download_error("OSError: [Errno 28] No space left on device")
         assert "disk full" in msg.lower()
 
     def test_ffmpeg_not_found(self):
-        msg = _humanize_download_error(
-            "ERROR: ffmpeg not found. Please install ffmpeg."
-        )
+        msg = _humanize_download_error("ERROR: ffmpeg not found. Please install ffmpeg.")
         assert "ffmpeg" in msg.lower()
 
     def test_http_403(self):
@@ -881,26 +915,19 @@ class TestHumanizeDownloadErrorExtended:
         assert "forbidden" in msg.lower()
 
     def test_windows_path_sanitized(self):
-        msg = _humanize_download_error(
-            "Error writing to C:\\Users\\test\\Downloads\\video.mp4"
-        )
+        msg = _humanize_download_error("Error writing to C:\\Users\\test\\Downloads\\video.mp4")
         assert "C:\\Users" not in msg
         assert "[path]" in msg
 
     def test_tilde_path_sanitized(self):
-        msg = _humanize_download_error(
-            "Cannot save to ~/Downloads/video.mp4"
-        )
+        msg = _humanize_download_error("Cannot save to ~/Downloads/video.mp4")
         assert "~/" not in msg or "[path]" in msg
 
     def test_multiple_paths_collapsed(self):
-        msg = _humanize_download_error(
-            "Moved /tmp/file1 to /home/user/file2: error"
-        )
+        msg = _humanize_download_error("Moved /tmp/file1 to /home/user/file2: error")
         assert "[path] [path]" not in msg
         assert "[path]" in msg
 
     def test_none_input(self):
         msg = _humanize_download_error("")
         assert msg == "Download failed."
-

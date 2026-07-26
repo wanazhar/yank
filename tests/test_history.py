@@ -16,7 +16,6 @@ from yank.models.history import (
     _coerce_history_status,
 )
 
-
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
 
@@ -66,7 +65,6 @@ class TestCoerceHistoryStatus:
         assert _coerce_history_status(True) == "error"
 
 
-
 # ── Coerce int safe ──────────────────────────────────────────────────────────
 
 
@@ -104,12 +102,18 @@ class TestHistoryCRUD:
 
     def test_add_multiple_newest_first(self, store):
         e1 = HistoryEntry.create(
-            title="First", url="https://x.com/1",
-            format_id="22", file_path="/tmp/a.mp4", status="success",
+            title="First",
+            url="https://x.com/1",
+            format_id="22",
+            file_path="/tmp/a.mp4",
+            status="success",
         )
         e2 = HistoryEntry.create(
-            title="Second", url="https://x.com/2",
-            format_id="18", file_path="/tmp/b.mp4", status="error",
+            title="Second",
+            url="https://x.com/2",
+            format_id="18",
+            file_path="/tmp/b.mp4",
+            status="error",
         )
         store.add(e1)
         store.add(e2)
@@ -135,8 +139,6 @@ class TestHistoryCRUD:
         store.clear()
         store.add(entry)
         assert len(store.to_list()) == 1
-
-
 
 
 # ── 1000-entry cap ───────────────────────────────────────────────────────────
@@ -184,19 +186,34 @@ class TestHistoryCap:
 class TestHistorySearch:
     @pytest.fixture
     def populated_store(self, store):
-        store.add(HistoryEntry.create(
-            title="Cat Video", url="https://youtube.com/watch?v=1",
-            format_id="22", file_path="/tmp/cat.mp4", status="success",
-        ))
-        store.add(HistoryEntry.create(
-            title="Dog Compilation", url="https://vimeo.com/2",
-            format_id="best", file_path="/tmp/dog.mp4", status="success",
-        ))
-        store.add(HistoryEntry.create(
-            title="Tutorial Python", url="https://youtube.com/watch?v=3",
-            format_id="18", file_path="/tmp/tutorial.mp4", status="error",
-            error="Download failed.",
-        ))
+        store.add(
+            HistoryEntry.create(
+                title="Cat Video",
+                url="https://youtube.com/watch?v=1",
+                format_id="22",
+                file_path="/tmp/cat.mp4",
+                status="success",
+            )
+        )
+        store.add(
+            HistoryEntry.create(
+                title="Dog Compilation",
+                url="https://vimeo.com/2",
+                format_id="best",
+                file_path="/tmp/dog.mp4",
+                status="success",
+            )
+        )
+        store.add(
+            HistoryEntry.create(
+                title="Tutorial Python",
+                url="https://youtube.com/watch?v=3",
+                format_id="18",
+                file_path="/tmp/tutorial.mp4",
+                status="error",
+                error="Download failed.",
+            )
+        )
         return store
 
     def test_search_by_title(self, populated_store):
@@ -231,13 +248,17 @@ class TestHistorySearch:
         assert len(results) == 3
 
     def test_search_unicode(self, store):
-        store.add(HistoryEntry.create(
-            title="Café Vidéo", url="https://example.com",
-            format_id="22", file_path="/tmp/cafe.mp4", status="success",
-        ))
+        store.add(
+            HistoryEntry.create(
+                title="Café Vidéo",
+                url="https://example.com",
+                format_id="22",
+                file_path="/tmp/cafe.mp4",
+                status="success",
+            )
+        )
         results = store.search("café")
         assert len(results) == 1
-
 
 
 # ── Corrupt JSON recovery ────────────────────────────────────────────────────
@@ -295,14 +316,16 @@ class TestCorruptJSONRecovery:
 
     def test_invalid_status_coerced(self, tmp_history_path):
         """Entry with invalid status is coerced to 'error'."""
-        data = [{
-            "date": "2024-01-01",
-            "title": "Test",
-            "url": "https://x.com",
-            "format_id": "22",
-            "file_path": "/tmp/v.mp4",
-            "status": "invalid_status",
-        }]
+        data = [
+            {
+                "date": "2024-01-01",
+                "title": "Test",
+                "url": "https://x.com",
+                "format_id": "22",
+                "file_path": "/tmp/v.mp4",
+                "status": "invalid_status",
+            }
+        ]
         tmp_history_path.write_text(json.dumps(data))
         store = HistoryStore(path=tmp_history_path)
         store.load()

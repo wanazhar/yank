@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+from textual.coordinate import Coordinate
 from textual.message import Message
 from textual.widgets import DataTable
 
@@ -46,7 +49,7 @@ class FormatTable(DataTable):
             super().__init__()
             self.format_info = format_info
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.cursor_type = "row"
         self.zebra_stripes = True
@@ -131,7 +134,7 @@ class FormatTable(DataTable):
         for i, fmt in enumerate(self._formats):
             mark = "●" if fmt.format_id == self._selected_id else " "
             try:
-                self.update_cell_at((i, 0), mark)
+                self.update_cell_at(Coordinate(i, 0), mark)
             except Exception:
                 _logger.debug("update_cell_at failed at row %s", i, exc_info=True)
 

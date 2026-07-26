@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 if TYPE_CHECKING:
     from yank.app import YankApp
@@ -26,11 +26,11 @@ class FormatSelectScreen(Screen):
     """Show formats in a table; side panel with video metadata."""
 
     @property
-    def _app(self) -> YankApp:  # type: ignore[name-defined]
+    def _app(self) -> YankApp:
         """Narrow ``self.app`` to the known ``YankApp`` subtype."""
         return cast("YankApp", self.app)
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("escape", "go_back", "Back", show=True),
         Binding("enter", "confirm", "Select", show=True),
         Binding("space", "toggle_select", "Select format", show=True),
@@ -123,16 +123,17 @@ class FormatSelectScreen(Screen):
                 yield Label("Uploader", classes="meta-row")
                 yield Label(self.meta.uploader or "—", classes="meta-value", id="meta-uploader")
                 yield Label("Upload date", classes="meta-row")
-                yield Label(
-                    self.meta.upload_date_display, classes="meta-value", id="meta-date"
-                )
+                yield Label(self.meta.upload_date_display, classes="meta-value", id="meta-date")
                 yield Label("Subtitles", classes="meta-row")
                 subs = (
                     ", ".join(self.meta.available_subtitle_langs[:MAX_SUBTITLE_DISPLAY])
                     if self.meta.has_subtitles
                     else "none"
                 )
-                if self.meta.has_subtitles and len(self.meta.available_subtitle_langs) > MAX_SUBTITLE_DISPLAY:
+                if (
+                    self.meta.has_subtitles
+                    and len(self.meta.available_subtitle_langs) > MAX_SUBTITLE_DISPLAY
+                ):
                     subs += "…"
                 yield Label(subs, classes="meta-value", id="meta-subs")
                 yield Label("URL", classes="meta-row")

@@ -271,16 +271,13 @@ def extract_formats(url: str, *, timeout: int = 60) -> VideoMeta:
     url = url.strip()
     if not is_valid_url(url):
         raise FormatExtractError(
-            "That doesn't look like a valid URL. "
-            "Paste a full link starting with https://"
+            "That doesn't look like a valid URL. Paste a full link starting with https://"
         )
 
     try:
         import yt_dlp
     except ImportError as exc:
-        raise FormatExtractError(
-            "yt-dlp is not installed. Open Settings to install it."
-        ) from exc
+        raise FormatExtractError("yt-dlp is not installed. Open Settings to install it.") from exc
 
     ydl_opts: dict[str, Any] = {
         "quiet": True,
@@ -317,8 +314,7 @@ def extract_formats(url: str, *, timeout: int = 60) -> VideoMeta:
     formats = [
         f
         for f in formats
-        if f.ext not in ("mhtml", "sb")
-        and not (f.vcodec == "none" and f.acodec == "none")
+        if f.ext not in ("mhtml", "sb") and not (f.vcodec == "none" and f.acodec == "none")
     ]
     formats.sort(key=_sort_key)
 

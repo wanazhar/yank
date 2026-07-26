@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from typing import ClassVar, Literal
+
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.widgets import Footer, Header
 
 from yank.engine.downloader import DownloadItem, DownloadManager, DownloadStatus
 from yank.engine.queue import QueueEngine
@@ -34,7 +35,7 @@ class YankApp(App):
     SUB_TITLE = "yank the web"
     CSS = APP_CSS
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("ctrl+c", "quit", "Quit", show=False, priority=True),
         Binding("ctrl+q", "quit", "Quit", show=True),
     ]
@@ -109,9 +110,7 @@ class YankApp(App):
     def _startup_ytdlp(self) -> None:
         """Install yt-dlp if missing; check for updates if due."""
         if not self.ytdlp.is_installed():
-            self.call_from_thread(
-                self._set_notice, "Installing yt-dlp…"
-            )
+            self.call_from_thread(self._set_notice, "Installing yt-dlp…")
             ok = self.ytdlp.ensure_installed()
             if ok:
                 self.call_from_thread(
@@ -161,12 +160,12 @@ class YankApp(App):
     def _on_download_finished(self, item: DownloadItem) -> None:
         self.queue.sync_from_manager(item)
 
-        status_map = {
+        status_map: dict[DownloadStatus, Literal["success", "error", "cancelled"]] = {
             DownloadStatus.COMPLETED: "success",
             DownloadStatus.ERROR: "error",
             DownloadStatus.CANCELLED: "cancelled",
         }
-        hist_status = status_map.get(item.status, "error")
+        hist_status: Literal["success", "error", "cancelled"] = status_map.get(item.status, "error")
         if item.status in (
             DownloadStatus.COMPLETED,
             DownloadStatus.ERROR,
@@ -220,9 +219,11 @@ class YankApp(App):
         try:
             self.call_from_thread(self.refresh_status_bar)
         except Exception:
-            _logger.debug("call_from_thread(refresh_status_bar) failed from _on_queue_change", exc_info=True)
+            _logger.debug(
+                "call_from_thread(refresh_status_bar) failed from _on_queue_change", exc_info=True
+            )
 
-    def action_quit(self) -> None:
+    async def action_quit(self) -> None:
         try:
             self.manager.cancel_all()
         except Exception:

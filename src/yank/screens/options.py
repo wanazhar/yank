@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 if TYPE_CHECKING:
     from yank.app import YankApp
@@ -12,7 +12,7 @@ from pathlib import Path
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import (
     Button,
@@ -36,11 +36,11 @@ class OptionsScreen(Screen):
     """Configure output path, template, thumbnails, subs, audio extract, etc."""
 
     @property
-    def _app(self) -> YankApp:  # type: ignore[name-defined]
+    def _app(self) -> YankApp:
         """Narrow ``self.app`` to the known ``YankApp`` subtype."""
         return cast("YankApp", self.app)
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("escape", "go_back", "Back", show=True),
         Binding("enter", "start_download", "Download", show=True),
     ]
@@ -149,9 +149,7 @@ class OptionsScreen(Screen):
                 classes="" if has_subs else "hidden",
             )
 
-            sub_options: list[tuple[str, str]] = [
-                (lang, lang) for lang in sub_langs
-            ]
+            sub_options: list[tuple[str, str]] = [(lang, lang) for lang in sub_langs]
             if not sub_options:
                 sub_options = [("en", "en")]
             default_lang = cfg.default_subtitle_lang
@@ -245,9 +243,7 @@ class OptionsScreen(Screen):
         try:
             Path(outdir).mkdir(parents=True, exist_ok=True)
         except OSError as exc:
-            self.query_one("#opt-error", Label).update(
-                f"Cannot use that directory: {exc}"
-            )
+            self.query_one("#opt-error", Label).update(f"Cannot use that directory: {exc}")
             return None
 
         template = self.query_one("#opt-template", Input).value.strip() or cfg.filename_template
@@ -333,8 +329,8 @@ class OptionsScreen(Screen):
         if opts is None:
             return
         item = self._make_item(opts)
-        self._app.queue.add(item)  
-        self._app.refresh_status_bar()  
+        self._app.queue.add(item)
+        self._app.refresh_status_bar()
         if self.remaining_urls:
             self._enqueue_remaining(list(self.remaining_urls), opts)
         self.notify(f"Added to queue: {item.title[:40]}", severity="information")
@@ -357,7 +353,9 @@ class OptionsScreen(Screen):
                 best = pick_best_format(meta.formats, "best")
                 if best is None:
                     self.app.call_from_thread(
-                        self.notify, f"Batch skip: No suitable format for {url[:40]}", severity="warning"
+                        self.notify,
+                        f"Batch skip: No suitable format for {url[:40]}",
+                        severity="warning",
                     )
                     continue
                 selector = format_selector_for(
@@ -387,8 +385,8 @@ class OptionsScreen(Screen):
                 )
 
                 def _add(it=item):
-                    self._app.queue.add(it)  
-                    self._app.refresh_status_bar()  
+                    self._app.queue.add(it)
+                    self._app.refresh_status_bar()
 
                 self.app.call_from_thread(_add)
             except FormatExtractError as exc:
@@ -397,8 +395,11 @@ class OptionsScreen(Screen):
                 )
             except Exception as exc:
                 from yank.engine.formats import _humanize_ytdlp_error
+
                 self.app.call_from_thread(
-                    self.notify, f"Batch skip: {_humanize_ytdlp_error(str(exc))}", severity="warning"
+                    self.notify,
+                    f"Batch skip: {_humanize_ytdlp_error(str(exc))}",
+                    severity="warning",
                 )
 
     def action_go_back(self) -> None:

@@ -65,6 +65,7 @@ skip_covered = false
 
 [tool.mypy]
 strict = false
+ignore_missing_imports = true
 check_untyped_defs = true
 disallow_incomplete_defs = true
 warn_unused_ignores = true

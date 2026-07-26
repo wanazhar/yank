@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 if TYPE_CHECKING:
     from yank.app import YankApp
@@ -33,11 +33,11 @@ class SettingsScreen(Screen):
     """Edit app defaults and manage yt-dlp."""
 
     @property
-    def _app(self) -> YankApp:  # type: ignore[name-defined]
+    def _app(self) -> YankApp:
         """Narrow ``self.app`` to the known ``YankApp`` subtype."""
         return cast("YankApp", self.app)
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("escape", "go_back", "Back", show=True),
         Binding("ctrl+s", "save", "Save", show=True),
     ]
@@ -116,7 +116,7 @@ class SettingsScreen(Screen):
                 allow_blank=False,
             )
 
-            yield Label("Max concurrent downloads (1–5)", classes="set-label")
+            yield Label("Max concurrent downloads (1-5)", classes="set-label")
             yield Select(
                 [(str(i), str(i)) for i in range(1, 6)],
                 value=str(cfg.max_concurrent),
@@ -198,12 +198,9 @@ class SettingsScreen(Screen):
 
         cfg.download_dir = directory
         cfg.filename_template = (
-            self.query_one("#set-template", Input).value.strip()
-            or "%(title)s.%(ext)s"
+            self.query_one("#set-template", Input).value.strip() or "%(title)s.%(ext)s"
         )
-        cfg.default_subtitle_lang = (
-            self.query_one("#set-sublang", Input).value.strip() or "en"
-        )
+        cfg.default_subtitle_lang = self.query_one("#set-sublang", Input).value.strip() or "en"
 
         proxy = self.query_one("#set-proxy", Input).value.strip()
         cfg.proxy = proxy
@@ -270,7 +267,7 @@ class SettingsScreen(Screen):
                 self.notify(result.message, severity="warning")
             else:
                 self.notify(result.message, severity="information")
-            self._app.refresh_status_bar()  
+            self._app.refresh_status_bar()
 
         self.app.call_from_thread(_apply)
 
@@ -293,7 +290,7 @@ class SettingsScreen(Screen):
             self._refresh_ytdlp_version()
             self.query_one("#set-ytdlp-msg", Label).update(msg)
             self.notify(msg, severity="information" if ok else "error")
-            self._app.refresh_status_bar()  
+            self._app.refresh_status_bar()
 
         self.app.call_from_thread(_apply)
 
@@ -321,7 +318,7 @@ class SettingsScreen(Screen):
             )
             self.query_one("#set-ytdlp-msg", Label).update(msg)
             self.notify(msg, severity="information" if ok else "error")
-            self._app.refresh_status_bar()  
+            self._app.refresh_status_bar()
 
         self.app.call_from_thread(_apply)
 

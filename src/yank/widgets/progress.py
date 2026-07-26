@@ -108,7 +108,7 @@ class DownloadProgressBar(Widget):
         try:
             bar = self.query_one("#dp-bar", ProgressBar)
             bar.update(progress=min(100.0, max(0.0, item.progress.percent)))
-            
+
             # Update bar color based on completion
             if item.status == DownloadStatus.COMPLETED:
                 bar.add_class("complete")
@@ -118,27 +118,29 @@ class DownloadProgressBar(Widget):
             _logger.debug("Failed to update progress bar for %s", item.id, exc_info=True)
         try:
             self.query_one("#dp-pct", Label).update(item.progress.percent_display)
-            
+
             # Speed display with color coding
             speed_label = self.query_one("#dp-speed", Label)
             speed_label.update(f"⚡ {item.progress.speed_display}")
-            
+
             # Color code speed
-            speed_label.remove_classes("dp-speed-fast dp-speed-medium dp-speed-slow")
+            speed_label.remove_class("dp-speed-fast")
+            speed_label.remove_class("dp-speed-medium")
+            speed_label.remove_class("dp-speed-slow")
             if item.progress.speed_mbps and item.progress.speed_mbps > 5.0:
                 speed_label.add_class("dp-speed-fast")
             elif item.progress.speed_mbps and item.progress.speed_mbps > 1.0:
                 speed_label.add_class("dp-speed-medium")
             elif item.progress.speed_mbps and item.progress.speed_mbps > 0:
                 speed_label.add_class("dp-speed-slow")
-            
+
             self.query_one("#dp-eta", Label).update(f"⏱ {item.progress.eta_display}")
             self.query_one("#dp-status", Label).update(self._status_text(item))
-            
+
             # Show checkmark on complete
             if item.status == DownloadStatus.COMPLETED:
                 self.query_one("#dp-status", Label).update("✔")
-            
+
             file_label = item.progress.filename or item.file_path or ""
             # Show basename only
             if file_label:
@@ -171,6 +173,4 @@ class QueueProgressSummary(Static):
     """
 
     def update_summary(self, count: int, active: int, percent: float) -> None:
-        self.update(
-            f"Queue: {count} item(s) · {active} active · overall {percent:.0f}%"
-        )
+        self.update(f"Queue: {count} item(s) · {active} active · overall {percent:.0f}%")

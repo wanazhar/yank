@@ -1,11 +1,10 @@
-
 """Tests for yt-dlp updater version comparison and helpers."""
 
 from __future__ import annotations
 
 from packaging.version import Version
 
-from yank.engine.updater import YtDlpManager  # noqa: F401  # keep import for module visibility
+from yank.engine.updater import YtDlpManager  # keep import for module visibility
 
 
 class TestVersionComparison:
@@ -61,8 +60,9 @@ class TestVersionComparison:
 
     def test_fallback_on_parse_error(self):
         """If parsing fails, InvalidVersion is raised."""
-        from packaging.version import InvalidVersion
         import pytest as _pytest
+        from packaging.version import InvalidVersion
+
         with _pytest.raises(InvalidVersion):
             Version("weird-version")
 
@@ -97,7 +97,6 @@ class TestVersionComparisonEdgeCases:
 class TestYtDlpManagerInstalled:
     def test_is_installed_when_importable(self, monkeypatch):
         """is_installed returns True when yt_dlp is importable."""
-        from yank.engine.updater import YtDlpManager
         from yank.models.config import AppConfig
 
         cfg = AppConfig()
@@ -106,7 +105,6 @@ class TestYtDlpManagerInstalled:
 
     def test_current_version_returns_string(self):
         """current_version returns a non-empty version string."""
-        from yank.engine.updater import YtDlpManager
         from yank.models.config import AppConfig
 
         cfg = AppConfig()
@@ -118,14 +116,15 @@ class TestYtDlpManagerInstalled:
 
     def test_current_version_when_not_installed(self, monkeypatch):
         """current_version returns 'not installed' when not importable."""
-        from yank.engine.updater import YtDlpManager
-        from yank.models.config import AppConfig
-        import importlib.metadata
         import builtins
+        import importlib.metadata
+
+        from yank.models.config import AppConfig
 
         monkeypatch.setattr(
-            importlib.metadata, "version",
-            lambda pkg: (_ for _ in ()).throw(importlib.metadata.PackageNotFoundError)
+            importlib.metadata,
+            "version",
+            lambda pkg: (_ for _ in ()).throw(importlib.metadata.PackageNotFoundError),
         )
 
         real_import = builtins.__import__
@@ -151,9 +150,9 @@ class TestYtDlpManagerInstalled:
 class TestCheckForUpdates:
     def test_not_installed_returns_false(self, monkeypatch):
         """check_for_updates returns installed=False when yt-dlp missing."""
-        from yank.engine.updater import YtDlpManager
-        from yank.models.config import AppConfig
         import builtins
+
+        from yank.models.config import AppConfig
 
         real_import = builtins.__import__
 
@@ -172,7 +171,6 @@ class TestCheckForUpdates:
 
     def test_update_available_when_newer(self, monkeypatch):
         """check_for_updates returns update_available=True when newer version exists."""
-        from yank.engine.updater import YtDlpManager
         from yank.models.config import AppConfig
 
         cfg = AppConfig(update_check_interval="always")
@@ -195,11 +193,8 @@ class TestCheckForUpdates:
         assert result.update_available is True
         assert result.latest_version == "9999.99.99"
 
-
-
     def test_up_to_date_when_same_version(self, monkeypatch):
         """check_for_updates returns update_available=False when same version."""
-        from yank.engine.updater import YtDlpManager
         from yank.models.config import AppConfig
 
         cfg = AppConfig(update_check_interval="always")
@@ -226,7 +221,6 @@ class TestCheckForUpdates:
 
     def test_never_interval_skips(self, monkeypatch):
         """check_for_updates with 'never' interval returns early."""
-        from yank.engine.updater import YtDlpManager
         from yank.models.config import AppConfig
 
         cfg = AppConfig(update_check_interval="never")
@@ -237,7 +231,6 @@ class TestCheckForUpdates:
 
     def test_fetch_error_returns_message(self, monkeypatch):
         """check_for_updates handles PyPI fetch errors gracefully."""
-        from yank.engine.updater import YtDlpManager
         from yank.models.config import AppConfig
 
         cfg = AppConfig(update_check_interval="always")
@@ -261,14 +254,12 @@ class TestCheckForUpdates:
         assert "could not check" in result.message.lower()
 
 
-
 # ── ensure_installed tests ───────────────────────────────────────────────────
 
 
 class TestEnsureInstalled:
     def test_already_installed_returns_true(self):
         """ensure_installed returns True when yt-dlp is already importable."""
-        from yank.engine.updater import YtDlpManager
         from yank.models.config import AppConfig
 
         cfg = AppConfig()
@@ -277,9 +268,9 @@ class TestEnsureInstalled:
 
     def test_not_installed_attempts_pip(self, monkeypatch):
         """ensure_installed calls pip install when yt-dlp is not importable."""
-        from yank.engine.updater import YtDlpManager
-        from yank.models.config import AppConfig
         import builtins
+
+        from yank.models.config import AppConfig
 
         real_import = builtins.__import__
 
@@ -311,7 +302,6 @@ class TestEnsureInstalled:
 
 class TestShouldCheckOnStartup:
     def test_never_returns_false(self):
-        from yank.engine.updater import YtDlpManager
         from yank.models.config import AppConfig
 
         cfg = AppConfig(update_check_interval="never")
@@ -319,7 +309,6 @@ class TestShouldCheckOnStartup:
         assert mgr.should_check_on_startup() is False
 
     def test_always_returns_true(self):
-        from yank.engine.updater import YtDlpManager
         from yank.models.config import AppConfig
 
         cfg = AppConfig(update_check_interval="always")
@@ -328,9 +317,9 @@ class TestShouldCheckOnStartup:
         assert mgr.should_check_on_startup() is True
 
     def test_ask_within_24h_returns_false(self):
-        from yank.engine.updater import YtDlpManager
-        from yank.models.config import AppConfig
         import time
+
+        from yank.models.config import AppConfig
 
         cfg = AppConfig(update_check_interval="ask")
         cfg.last_update_check = time.time()
@@ -344,9 +333,9 @@ class TestShouldCheckOnStartup:
 class TestPipInstall:
     def test_successful_install(self, monkeypatch):
         """_pip_install returns (True, message) on success."""
-        from yank.engine.updater import YtDlpManager
-        from yank.models.config import AppConfig
         import subprocess
+
+        from yank.models.config import AppConfig
 
         class FakeResult:
             returncode = 0
@@ -364,12 +353,11 @@ class TestPipInstall:
         assert ok is True
         assert "installed" in msg.lower()
 
-
     def test_os_error(self, monkeypatch):
         """_pip_install handles OSError."""
-        from yank.engine.updater import YtDlpManager
-        from yank.models.config import AppConfig
         import subprocess
+
+        from yank.models.config import AppConfig
 
         def fake_run(cmd, capture_output, text, timeout, check):
             raise OSError("No such file: pip")
@@ -384,9 +372,9 @@ class TestPipInstall:
 
     def test_upgrade_flag(self, monkeypatch):
         """_pip_install with upgrade=True adds -U flag."""
-        from yank.engine.updater import YtDlpManager
-        from yank.models.config import AppConfig
         import subprocess
+
+        from yank.models.config import AppConfig
 
         captured_cmd = []
 
@@ -408,9 +396,9 @@ class TestPipInstall:
 
     def test_failed_install(self, monkeypatch):
         """_pip_install returns (False, message) on failure."""
-        from yank.engine.updater import YtDlpManager
-        from yank.models.config import AppConfig
         import subprocess
+
+        from yank.models.config import AppConfig
 
         class FakeResult:
             returncode = 1
@@ -430,9 +418,9 @@ class TestPipInstall:
 
     def test_timeout_expired(self, monkeypatch):
         """_pip_install handles subprocess.TimeoutExpired."""
-        from yank.engine.updater import YtDlpManager
-        from yank.models.config import AppConfig
         import subprocess
+
+        from yank.models.config import AppConfig
 
         def fake_run(cmd, capture_output, text, timeout, check):
             raise subprocess.TimeoutExpired(cmd="pip", timeout=180)

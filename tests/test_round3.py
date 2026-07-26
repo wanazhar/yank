@@ -1,11 +1,9 @@
-
 """Tests for round-3 audit fixes: cancel_flag=None, start_all sync, created_at, ytdlp.config."""
 
 from __future__ import annotations
 
 import json
 import tempfile
-import time
 from pathlib import Path
 
 import pytest
@@ -17,7 +15,6 @@ from yank.engine.downloader import (
     DownloadStatus,
 )
 from yank.engine.queue import QueueEngine
-
 
 # ── C1: cancel_flag None handling ─────────────────────────────────────────
 
@@ -77,9 +74,7 @@ class TestStartAllThreadSafety:
             elif in_start_all and line.strip().startswith("def "):
                 in_start_all = False
             elif in_start_all and "di.status =" in line:
-                pytest.fail(
-                    f"start_all() still has unsynchronized di.status write: {line.strip()}"
-                )
+                pytest.fail(f"start_all() still has unsynchronized di.status write: {line.strip()}")
 
     def test_start_all_pending_calls_manager_start(self):
         """start_all() should call manager.start() for pending items."""
@@ -121,13 +116,15 @@ class TestCreatedAtFalsyValue:
 
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "queue.json"
-            data = [{
-                "id": "test-zero",
-                "url": "https://example.com",
-                "title": "Test",
-                "format_id": "22",
-                "created_at": 0,
-            }]
+            data = [
+                {
+                    "id": "test-zero",
+                    "url": "https://example.com",
+                    "title": "Test",
+                    "format_id": "22",
+                    "created_at": 0,
+                }
+            ]
             path.write_text(json.dumps(data))
 
             qe = QueueEngine(config, mgr, path=path)
@@ -143,13 +140,15 @@ class TestCreatedAtFalsyValue:
 
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "queue.json"
-            data = [{
-                "id": "test-null",
-                "url": "https://example.com",
-                "title": "Test",
-                "format_id": "22",
-                "created_at": None,
-            }]
+            data = [
+                {
+                    "id": "test-null",
+                    "url": "https://example.com",
+                    "title": "Test",
+                    "format_id": "22",
+                    "created_at": None,
+                }
+            ]
             path.write_text(json.dumps(data))
 
             qe = QueueEngine(config, mgr, path=path)
@@ -166,12 +165,14 @@ class TestCreatedAtFalsyValue:
 
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "queue.json"
-            data = [{
-                "id": "test-missing",
-                "url": "https://example.com",
-                "title": "Test",
-                "format_id": "22",
-            }]
+            data = [
+                {
+                    "id": "test-missing",
+                    "url": "https://example.com",
+                    "title": "Test",
+                    "format_id": "22",
+                }
+            ]
             path.write_text(json.dumps(data))
 
             qe = QueueEngine(config, mgr, path=path)
@@ -207,7 +208,5 @@ class TestConcurrencySelectError:
             if "cfg.max_concurrent = int(str(conc))" in line:
                 in_try_block = True
             elif in_try_block and "except" in line:
-                assert "ValueError" in line, (
-                    f"Expected ValueError, got: {line.strip()}"
-                )
+                assert "ValueError" in line, f"Expected ValueError, got: {line.strip()}"
                 break

@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 if TYPE_CHECKING:
     from yank.app import YankApp
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Horizontal
 from textual.screen import Screen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Label
 
@@ -26,11 +26,12 @@ from yank.models.history import HistoryEntry
 
 def _format_size(size: int) -> str:
     """Human-readable file size."""
+    size_value = float(size)
     for unit in ("B", "KB", "MB", "GB", "TB"):
-        if size < 1024:
-            return f"{size:.1f} {unit}" if unit != "B" else f"{size} B"
-        size /= 1024.0
-    return f"{size:.1f} PB"
+        if size_value < 1024:
+            return f"{size_value:.1f} {unit}" if unit != "B" else f"{int(size_value)} B"
+        size_value /= 1024.0
+    return f"{size_value:.1f} PB"
 
 
 def _open_with_system(path: str) -> None:
@@ -48,11 +49,11 @@ class HistoryScreen(Screen):
     """Past downloads: Date, Title, URL, Format, File path, Status, Size."""
 
     @property
-    def _app(self) -> YankApp:  # type: ignore[name-defined]
+    def _app(self) -> YankApp:
         """Narrow ``self.app`` to the known ``YankApp`` subtype."""
         return cast("YankApp", self.app)
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("escape", "go_back", "Back", show=True),
         Binding("r", "redownload", "Re-download", show=True),
         Binding("y", "copy_info", "Copy info", show=True),
@@ -166,22 +167,22 @@ class HistoryScreen(Screen):
         if col is None:
             return entries
 
-        if col == "Date":
-            key = lambda e: e.date or ""
-        elif col == "Title":
-            key = lambda e: (e.title or "").lower()
-        elif col == "URL":
-            key = lambda e: (e.url or "").lower()
-        elif col == "Format":
-            key = lambda e: (e.format_id or "").lower()
-        elif col == "File":
-            key = lambda e: (e.file_path or "").lower()
-        elif col == "Status":
-            key = lambda e: (e.status or "").lower()
-        elif col == "Size":
-            key = lambda e: e.filesize or 0
-        else:
-            key = lambda e: ""
+        def key(entry: HistoryEntry) -> str | int:
+            if col == "Date":
+                return entry.date or ""
+            if col == "Title":
+                return (entry.title or "").lower()
+            if col == "URL":
+                return (entry.url or "").lower()
+            if col == "Format":
+                return (entry.format_id or "").lower()
+            if col == "File":
+                return (entry.file_path or "").lower()
+            if col == "Status":
+                return (entry.status or "").lower()
+            if col == "Size":
+                return entry.filesize or 0
+            return ""
 
         rev = self._sort_reverse
         return sorted(entries, key=key, reverse=rev)
@@ -214,7 +215,7 @@ class HistoryScreen(Screen):
         # Update column labels with sort indicators
         new_headers = self._build_column_headers()
         for i, h in enumerate(new_headers):
-            table.ordered_columns[i].label = h  # type: ignore[union-attr]
+            table.ordered_columns[i].label = h  # type: ignore[assignment]
 
         for e in entries:
             date = e.date[:19].replace("T", " ") if e.date else "—"
@@ -328,7 +329,7 @@ class HistoryScreen(Screen):
 
     @work(thread=True)
     def _do_redownload(self, entry: HistoryEntry) -> None:
-        from yank.engine.formats import FormatExtractError, extract_formats, pick_best_format
+        from yank.engine.formats import FormatExtractError, extract_formats
         from yank.screens.format_select import FormatSelectScreen
 
         self.app.call_from_thread(
@@ -346,6 +347,7 @@ class HistoryScreen(Screen):
             return
         except Exception as exc:
             from yank.engine.formats import _humanize_ytdlp_error
+
             self.app.call_from_thread(
                 self.notify, _humanize_ytdlp_error(str(exc)), severity="error"
             )

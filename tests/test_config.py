@@ -1,4 +1,3 @@
-
 """Tests for config save/load roundtrip, TOML serialization, and type validation."""
 
 from __future__ import annotations
@@ -188,6 +187,7 @@ class TestTomlSerialization:
     def test_write_creates_valid_toml(self, tmp_config_path):
         """Written TOML should be reloadable by tomllib."""
         import tomllib
+
         data = {
             "download_dir": "/home/user/Downloads",
             "max_concurrent": 3,
@@ -231,6 +231,7 @@ class TestConfigEdgeCasesExpanded:
     def test_load_config_with_missing_parent_dir(self, tmp_config_path):
         """load_config from a path whose parent doesn't exist returns defaults."""
         import tempfile
+
         with tempfile.TemporaryDirectory() as td:
             nonexistent = Path(td) / "nonexistent" / "config.toml"
             cfg = load_config(nonexistent)
@@ -267,7 +268,6 @@ class TestConfigEdgeCasesExpanded:
 
     def test_ensure_valid_download_dir_not_a_directory(self, tmp_path):
         """If download_dir is a file, it resets to ~/Downloads."""
-        import os
         file_path = tmp_path / "not_a_dir"
         file_path.write_text("I am a file")
         cfg = AppConfig(download_dir=str(file_path))
@@ -303,9 +303,7 @@ class TestConfigEdgeCasesExpanded:
 
     def test_save_config_no_tomli_w(self, tmp_config_path, monkeypatch):
         """save_config works when tomli_w is not available (manual mode)."""
-        monkeypatch.setattr(
-            "yank.models.config.tomli_w", None
-        )
+        monkeypatch.setattr("yank.models.config.tomli_w", None)
         cfg = AppConfig(
             download_dir="/custom/dir",
             max_concurrent=3,
@@ -321,10 +319,9 @@ class TestConfigEdgeCasesExpanded:
         """Unknown keys in TOML are silently ignored during load."""
         tmp_config_path.write_text(
             'download_dir = "/tmp"\n'
-            'max_concurrent = 3\n'
+            "max_concurrent = 3\n"
             'unknown_key = "should be fine"\n'
-            'another_unknown = 42\n'
+            "another_unknown = 42\n"
         )
         cfg = load_config(tmp_config_path)
         assert cfg.max_concurrent == 3
-

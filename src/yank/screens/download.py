@@ -2,21 +2,23 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 if TYPE_CHECKING:
     from yank.app import YankApp
 
-from textual.events import Click
 from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Horizontal, VerticalScroll
+from textual.dom import DOMNode
+from textual.events import Click
 from textual.screen import Screen
+from textual.timer import Timer
 from textual.widgets import Button, Footer, Header, Label
 
 from yank.constants import DOWNLOAD_POLL_INTERVAL
-from yank.engine.downloader import DownloadItem, DownloadStatus
+from yank.engine.downloader import DownloadStatus
 from yank.logging import get_logger
 from yank.widgets.progress import DownloadProgressBar, QueueProgressSummary
 
@@ -27,11 +29,11 @@ class DownloadScreen(Screen):
     """Live progress bars for downloads; pause/cancel per item."""
 
     @property
-    def _app(self) -> YankApp:  # type: ignore[name-defined]
+    def _app(self) -> YankApp:
         """Narrow ``self.app`` to the known ``YankApp`` subtype."""
         return cast("YankApp", self.app)
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("escape", "go_back", "Back", show=True),
         Binding("p", "pause_selected", "Pause", show=True),
         Binding("c", "cancel_selected", "Cancel", show=True),
@@ -80,7 +82,7 @@ class DownloadScreen(Screen):
         super().__init__(name=name, id=id, classes=classes)
         self.focus_id = focus_id
         self._selected_id: str | None = focus_id
-        self._timer = None
+        self._timer: Timer | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -122,9 +124,7 @@ class DownloadScreen(Screen):
         await container.remove_children()
 
         if not items:
-            await container.mount(
-                Label("No downloads yet. Paste a URL to start.", id="dl-empty")
-            )
+            await container.mount(Label("No downloads yet. Paste a URL to start.", id="dl-empty"))
         else:
             bars: list[DownloadProgressBar] = []
             for item in items:
@@ -143,7 +143,7 @@ class DownloadScreen(Screen):
             if item:
                 bar.update_from_item(item)
         self._update_summary()
-        self._app.refresh_status_bar()  
+        self._app.refresh_status_bar()
 
     def _update_summary(self) -> None:
         queue = self._app.queue
@@ -166,7 +166,7 @@ class DownloadScreen(Screen):
 
     def on_click(self, event: Click) -> None:
         # Select progress bar under click
-        widget = event.widget
+        widget: DOMNode | None = event.widget
         while widget is not None:
             if isinstance(widget, DownloadProgressBar):
                 self._selected_id = widget.item_id
@@ -182,10 +182,10 @@ class DownloadScreen(Screen):
         if not item_id:
             self.notify("No download selected.", severity="warning")
             return
-        self._app.manager.pause(item_id)  
-        di = self._app.manager.get(item_id)  
+        self._app.manager.pause(item_id)
+        di = self._app.manager.get(item_id)
         if di:
-            self._app.queue.sync_from_manager(di)  
+            self._app.queue.sync_from_manager(di)
         self.refresh_progress()
 
     @on(Button.Pressed, "#btn-cancel")
@@ -194,20 +194,20 @@ class DownloadScreen(Screen):
         if not item_id:
             self.notify("No download selected.", severity="warning")
             return
-        self._app.manager.cancel(item_id)  
-        di = self._app.manager.get(item_id)  
+        self._app.manager.cancel(item_id)
+        di = self._app.manager.get(item_id)
         if di:
-            self._app.queue.sync_from_manager(di)  
+            self._app.queue.sync_from_manager(di)
         self.refresh_progress()
 
     @on(Button.Pressed, "#btn-pause-all")
     def on_pause_all(self) -> None:
-        self._app.queue.pause_all()  
+        self._app.queue.pause_all()
         self.refresh_progress()
 
     @on(Button.Pressed, "#btn-start-all")
     def on_start_all(self) -> None:
-        self._app.queue.start_all()  
+        self._app.queue.start_all()
         self.refresh_progress()
 
     def action_open_queue(self) -> None:

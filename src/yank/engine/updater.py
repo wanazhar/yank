@@ -7,8 +7,8 @@ import importlib.metadata
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from packaging.version import Version
 
@@ -17,7 +17,6 @@ from yank.logging import get_logger
 from yank.models.config import AppConfig, save_config
 
 _logger = get_logger(__name__)
-
 
 
 @dataclass
@@ -141,7 +140,10 @@ class YtDlpManager:
                 message="Could not check for updates.",
             )
 
-        update_available = bool(latest) and Version(latest) > Version(current)
+        if latest:
+            update_available = Version(latest) > Version(current)
+        else:
+            update_available = False
         msg = (
             f"Update available: {current} → {latest}"
             if update_available
@@ -226,6 +228,3 @@ class YtDlpManager:
             return None, "Unexpected PyPI response."
         except Exception as exc:
             return None, str(exc)[:ERROR_MSG_MAX_LEN]
-
-
-

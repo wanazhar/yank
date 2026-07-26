@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 if TYPE_CHECKING:
     from yank.app import YankApp
 
 import pyfiglet
-
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static, TextArea
 
@@ -24,11 +23,11 @@ class URLInputScreen(Screen):
     """First screen: paste URL(s) for single or batch queue."""
 
     @property
-    def _app(self) -> YankApp:  # type: ignore[name-defined]
+    def _app(self) -> YankApp:
         """Narrow ``self.app`` to the known ``YankApp`` subtype."""
         return cast("YankApp", self.app)
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("escape", "app.quit", "Quit", show=True),
         Binding("ctrl+c", "app.quit", "Quit", show=False),
         Binding("ctrl+v", "paste_clipboard", "Paste", show=True),
@@ -151,7 +150,9 @@ class URLInputScreen(Screen):
                 logo_text = pyfiglet.figlet_format("yank", font="slant")
                 yield Static(logo_text, id="ascii-logo")
                 yield Label("yank the web", id="subtitle")
-            yield Label("Paste a video URL · or multiple URLs (one per line) for batch", id="url-hint")
+            yield Label(
+                "Paste a video URL · or multiple URLs (one per line) for batch", id="url-hint"
+            )
             yield Label("", id="clip-hint")
             yield Input(
                 placeholder="https://…",
@@ -242,9 +243,7 @@ class URLInputScreen(Screen):
                 multi.load_text(single.value.strip())
             multi.focus()
             btn.label = "Single mode"
-            self.query_one("#url-hint", Label).update(
-                "Batch mode: one URL per line, then Continue"
-            )
+            self.query_one("#url-hint", Label).update("Batch mode: one URL per line, then Continue")
         else:
             multi.remove_class("visible")
             single.focus()
@@ -281,15 +280,11 @@ class URLInputScreen(Screen):
     def action_continue(self) -> None:
         urls = self._collect_urls()
         if not urls:
-            self.query_one("#url-error", Label).update(
-                "Paste at least one valid URL (https://…)."
-            )
+            self.query_one("#url-error", Label).update("Paste at least one valid URL (https://…).")
             return
         invalid = [u for u in urls if not is_valid_url(u)]
         if invalid:
-            self.query_one("#url-error", Label).update(
-                f"Invalid URL: {invalid[0][:60]}"
-            )
+            self.query_one("#url-error", Label).update(f"Invalid URL: {invalid[0][:60]}")
             return
 
         self.query_one("#url-error", Label).update("")
@@ -337,17 +332,13 @@ class URLInputScreen(Screen):
             from yank.engine.formats import _humanize_ytdlp_error
 
             msg = _humanize_ytdlp_error(str(exc))
-            self.app.call_from_thread(
-                lambda m=msg: self.query_one("#url-error", Label).update(m)
-            )
+            self.app.call_from_thread(lambda m=msg: self.query_one("#url-error", Label).update(m))
             return
 
         remaining = urls[1:]
 
         def _push() -> None:
             self.query_one("#url-error", Label).update("")
-            self.app.push_screen(
-                FormatSelectScreen(meta=meta, remaining_urls=remaining)
-            )
+            self.app.push_screen(FormatSelectScreen(meta=meta, remaining_urls=remaining))
 
         self.app.call_from_thread(_push)

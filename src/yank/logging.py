@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import sys
-from pathlib import Path
 
 from yank.paths import DATA_DIR, LOG_PATH
 

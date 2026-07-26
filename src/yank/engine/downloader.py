@@ -6,10 +6,11 @@ import re
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from yank.constants import ERROR_MSG_MAX_LEN
 from yank.engine.formats import FormatInfo, VideoMeta, format_selector_for
@@ -19,7 +20,7 @@ from yank.models.config import AppConfig
 _logger = get_logger(__name__)
 
 
-class DownloadStatus(str, Enum):
+class DownloadStatus(StrEnum):
     PENDING = "pending"
     QUEUED = "queued"
     DOWNLOADING = "downloading"
@@ -168,11 +169,7 @@ class DownloadManager:
 
     def active_count(self) -> int:
         with self._lock:
-            return sum(
-                1
-                for i in self._items.values()
-                if i.status == DownloadStatus.DOWNLOADING
-            )
+            return sum(1 for i in self._items.values() if i.status == DownloadStatus.DOWNLOADING)
 
     def register(self, item: DownloadItem) -> DownloadItem:
         with self._lock:
@@ -200,17 +197,12 @@ class DownloadManager:
                 return
 
             # Enforce concurrency limit (inline — lock already held)
-            active = sum(
-                1 for i in self._items.values()
-                if i.status == DownloadStatus.DOWNLOADING
-            )
+            active = sum(1 for i in self._items.values() if i.status == DownloadStatus.DOWNLOADING)
             if active >= self.config.max_concurrent:
                 item.status = DownloadStatus.QUEUED
                 queued = True
             else:
-                cancel_flag = self._cancel_flags.setdefault(
-                    item_id, threading.Event()
-                )
+                cancel_flag = self._cancel_flags.setdefault(item_id, threading.Event())
                 cancel_flag.clear()
                 item.status = DownloadStatus.DOWNLOADING
                 item.error = ""
@@ -256,6 +248,7 @@ class DownloadManager:
             self._notify_finished(item)
             if _pump:
                 self._pump_queue()
+
     def pause(self, item_id: str, *, _pump: bool = True) -> None:
         """Cooperative pause: cancel current transfer, mark as paused."""
         item = self.get(item_id)
@@ -305,17 +298,9 @@ class DownloadManager:
     def _pump_queue(self) -> None:
         """Start queued items up to max_concurrent."""
         with self._lock:
-            active = sum(
-                1
-                for i in self._items.values()
-                if i.status == DownloadStatus.DOWNLOADING
-            )
+            active = sum(1 for i in self._items.values() if i.status == DownloadStatus.DOWNLOADING)
             slots = max(0, self.config.max_concurrent - active)
-            queued = [
-                i
-                for i in self._items.values()
-                if i.status == DownloadStatus.QUEUED
-            ]
+            queued = [i for i in self._items.values() if i.status == DownloadStatus.QUEUED]
             queued.sort(key=lambda x: x.created_at)
             to_start = [i.id for i in queued[:slots]]
 
@@ -381,9 +366,8 @@ class DownloadManager:
         postprocessors: list[dict[str, Any]] = []
 
         if opts.extract_audio:
-            ydl_opts["format"] = (
-                opts.custom_format
-                or (item.selected_format.format_id if item.selected_format else "bestaudio/best")
+            ydl_opts["format"] = opts.custom_format or (
+                item.selected_format.format_id if item.selected_format else "bestaudio/best"
             )
             postprocessors.append(
                 {
@@ -423,7 +407,6 @@ class DownloadManager:
             self._pump_queue()
             return
 
-        notify_finished = True
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 with self._lock:
@@ -431,7 +414,6 @@ class DownloadManager:
                     if cancel_flag.is_set():
                         if item.status != DownloadStatus.PAUSED:
                             item.status = DownloadStatus.CANCELLED
-                        notify_finished = False
                 if cancel_flag.is_set():
                     return
 
@@ -440,7 +422,6 @@ class DownloadManager:
                 with self._lock:
                     if cancel_flag.is_set():
                         if item.status == DownloadStatus.PAUSED:
-                            notify_finished = False
                             return
                         item.status = DownloadStatus.CANCELLED
                         item.progress.status_text = "Cancelled"
@@ -470,15 +451,14 @@ class DownloadManager:
                     item.progress.status_text = "Cancelled"
         except Exception as exc:
             with self._lock:
-                if item.status == DownloadStatus.PAUSED:
-                    notify_finished = False
-                elif cancel_flag.is_set():
-                    item.status = DownloadStatus.CANCELLED
-                    item.progress.status_text = "Cancelled"
-                else:
-                    item.status = DownloadStatus.ERROR
-                    item.error = _humanize_download_error(str(exc))
-                    item.progress.status_text = "Error"
+                if item.status != DownloadStatus.PAUSED:
+                    if cancel_flag.is_set():
+                        item.status = DownloadStatus.CANCELLED
+                        item.progress.status_text = "Cancelled"
+                    else:
+                        item.status = DownloadStatus.ERROR
+                        item.error = _humanize_download_error(str(exc))
+                        item.progress.status_text = "Error"
         finally:
             with self._lock:
                 self._ydl_instances.pop(item_id, None)

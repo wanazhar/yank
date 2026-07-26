@@ -1,4 +1,3 @@
-
 """Tests for QueueEngine crash recovery, persistence, and reordering."""
 
 from __future__ import annotations
@@ -62,8 +61,10 @@ class TestQueueBasic:
     def test_add_multiple(self, queue_engine, dl_item):
         queue_engine.add(dl_item)
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="Video 2",
-            format_id="18", options=DownloadOptions(),
+            url="https://example.com/2",
+            title="Video 2",
+            format_id="18",
+            options=DownloadOptions(),
         )
         queue_engine.add(item2)
         assert queue_engine.size() == 2
@@ -238,12 +239,18 @@ class TestQueuePersistence:
     def test_skips_completed_on_restore_register(self, config, manager, tmp_queue_path):
         """Completed/cancelled items are not re-registered with manager."""
         qi_done = QueueItem(
-            id="done1", url="https://done.com", title="Done",
-            format_id="22", status="completed",
+            id="done1",
+            url="https://done.com",
+            title="Done",
+            format_id="22",
+            status="completed",
         )
         qi_pending = QueueItem(
-            id="pend1", url="https://pend.com", title="Pending",
-            format_id="22", status="pending",
+            id="pend1",
+            url="https://pend.com",
+            title="Pending",
+            format_id="22",
+            status="pending",
         )
         qe = QueueEngine(config, manager, path=tmp_queue_path)
         qe._items = [qi_done, qi_pending]
@@ -272,10 +279,12 @@ class TestQueueMutations:
         queue_engine.add(dl_item)
         # Add a completed item
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="Video 2",
-            format_id="18", options=DownloadOptions(),
+            url="https://example.com/2",
+            title="Video 2",
+            format_id="18",
+            options=DownloadOptions(),
         )
-        qi2 = queue_engine.add(item2)
+        queue_engine.add(item2)
         item2.status = DownloadStatus.COMPLETED
         queue_engine.sync_from_manager(item2)
 
@@ -287,8 +296,10 @@ class TestQueueMutations:
     def test_reorder_valid(self, queue_engine, dl_item):
         queue_engine.add(dl_item)
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="Video 2",
-            format_id="18", options=DownloadOptions(),
+            url="https://example.com/2",
+            title="Video 2",
+            format_id="18",
+            options=DownloadOptions(),
         )
         queue_engine.add(item2)
         # Move first item to end
@@ -303,8 +314,10 @@ class TestQueueMutations:
     def test_move_up(self, queue_engine, dl_item):
         queue_engine.add(dl_item)
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="Video 2",
-            format_id="18", options=DownloadOptions(),
+            url="https://example.com/2",
+            title="Video 2",
+            format_id="18",
+            options=DownloadOptions(),
         )
         queue_engine.add(item2)
         queue_engine.move_up(item2.id)
@@ -320,8 +333,10 @@ class TestQueueMutations:
     def test_move_down(self, queue_engine, dl_item):
         queue_engine.add(dl_item)
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="Video 2",
-            format_id="18", options=DownloadOptions(),
+            url="https://example.com/2",
+            title="Video 2",
+            format_id="18",
+            options=DownloadOptions(),
         )
         queue_engine.add(item2)
         queue_engine.move_down(dl_item.id)
@@ -398,8 +413,11 @@ class TestQueueItemConversion:
     def test_downloading_status_demoted_to_queued(self):
         """Items saved as 'downloading' restore as 'queued'."""
         qi = QueueItem(
-            id="test1", url="https://example.com",
-            title="Video", format_id="22", status="downloading",
+            id="test1",
+            url="https://example.com",
+            title="Video",
+            format_id="22",
+            status="downloading",
         )
         di = qi.to_download_item()
         assert di.status == DownloadStatus.QUEUED
@@ -408,8 +426,10 @@ class TestQueueItemConversion:
         """Custom format string survives roundtrip."""
         opts = DownloadOptions(custom_format="bestvideo[height<=1080]+bestaudio")
         item = DownloadItem.create(
-            url="https://example.com", title="Test",
-            format_id="22", options=opts,
+            url="https://example.com",
+            title="Test",
+            format_id="22",
+            options=opts,
         )
         qi = QueueItem.from_download_item(item)
         assert qi.custom_format == "bestvideo[height<=1080]+bestaudio"
@@ -430,7 +450,7 @@ class TestQueueStartPauseAll:
         queue_engine.start_all()
 
         items = queue_engine.get_items()
-        qi = [i for i in items if i.id == dl_item.id][0]
+        qi = next(i for i in items if i.id == dl_item.id)
         assert qi is not None
 
     def test_start_all_skips_completed(self, queue_engine, dl_item):
@@ -457,8 +477,10 @@ class TestQueueStartPauseAll:
         queue_engine.add(dl_item)
 
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="Done",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/2",
+            title="Done",
+            format_id="22",
+            options=DownloadOptions(),
         )
         item2.status = DownloadStatus.COMPLETED
         queue_engine.manager.register(item2)
@@ -466,8 +488,10 @@ class TestQueueStartPauseAll:
         queue_engine.sync_from_manager(item2)
 
         item3 = DownloadItem.create(
-            url="https://example.com/3", title="Failed",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/3",
+            title="Failed",
+            format_id="22",
+            options=DownloadOptions(),
         )
         item3.status = DownloadStatus.ERROR
         queue_engine.manager.register(item3)
@@ -481,8 +505,6 @@ class TestQueueStartPauseAll:
         assert remaining[0].id == dl_item.id
 
 
-
-
 # ── Persistence edge cases ───────────────────────────────────────────────────
 
 
@@ -492,6 +514,7 @@ class TestQueuePersistenceExtended:
     def test_save_creates_parent_dirs(self, config, manager):
         """save() creates parent directories if they don't exist."""
         import tempfile
+
         td = tempfile.TemporaryDirectory()
         path = Path(td.name) / "subdir" / "nested" / "queue.json"
         qe = QueueEngine(config, manager, path=path)
@@ -509,14 +532,17 @@ class TestQueuePersistenceExtended:
     def test_load_with_extra_keys_preserved(self, config, manager, tmp_queue_path):
         """load() handles entries with extra unknown keys gracefully."""
         import json
-        data = [{
-            "id": "test-extra",
-            "url": "https://example.com",
-            "title": "Test",
-            "format_id": "22",
-            "extra_field": "should be ignored",
-            "another_extra": 42,
-        }]
+
+        data = [
+            {
+                "id": "test-extra",
+                "url": "https://example.com",
+                "title": "Test",
+                "format_id": "22",
+                "extra_field": "should be ignored",
+                "another_extra": 42,
+            }
+        ]
         tmp_queue_path.write_text(json.dumps(data))
         qe = QueueEngine(config, manager, path=tmp_queue_path)
         qe.load()
@@ -528,12 +554,16 @@ class TestQueuePersistenceExtended:
         qe = QueueEngine(config, manager, path=tmp_queue_path)
 
         item1 = DownloadItem.create(
-            url="https://example.com/1", title="First",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/1",
+            title="First",
+            format_id="22",
+            options=DownloadOptions(),
         )
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="Second",
-            format_id="18", options=DownloadOptions(extract_audio=True, audio_format="opus"),
+            url="https://example.com/2",
+            title="Second",
+            format_id="18",
+            options=DownloadOptions(extract_audio=True, audio_format="opus"),
         )
         qe.add(item1)
         qe.add(item2)
@@ -549,19 +579,21 @@ class TestQueuePersistenceExtended:
     def test_load_preserves_subtitle_langs(self, config, manager, tmp_queue_path):
         """subtitle_langs list survives save/load roundtrip."""
         import json
-        data = [{
-            "id": "test-subs",
-            "url": "https://example.com",
-            "title": "Test",
-            "format_id": "22",
-            "subtitle_langs": ["en", "fr", "de"],
-        }]
+
+        data = [
+            {
+                "id": "test-subs",
+                "url": "https://example.com",
+                "title": "Test",
+                "format_id": "22",
+                "subtitle_langs": ["en", "fr", "de"],
+            }
+        ]
         tmp_queue_path.write_text(json.dumps(data))
         qe = QueueEngine(config, manager, path=tmp_queue_path)
         qe.load()
         items = qe.get_items()
         assert items[0].subtitle_langs == ["en", "fr", "de"]
-
 
 
 # ── Reorder edge cases ───────────────────────────────────────────────────────
@@ -571,12 +603,16 @@ class TestReorderExtended:
     def test_reorder_multiple_moves(self, queue_engine, dl_item):
         """Multiple move_up/move_down calls produce expected ordering."""
         item2 = DownloadItem.create(
-            url="https://example.com/2", title="V2",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/2",
+            title="V2",
+            format_id="22",
+            options=DownloadOptions(),
         )
         item3 = DownloadItem.create(
-            url="https://example.com/3", title="V3",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com/3",
+            title="V3",
+            format_id="22",
+            options=DownloadOptions(),
         )
         queue_engine.add(dl_item)
         queue_engine.add(item2)
@@ -613,8 +649,10 @@ class TestQueueCallbacks:
 
         qe = QueueEngine(config, manager, path=tmp_queue_path, on_change=callback)
         item = DownloadItem.create(
-            url="https://example.com", title="Test",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com",
+            title="Test",
+            format_id="22",
+            options=DownloadOptions(),
         )
         qe.add(item)
         assert len(fired) >= 1
@@ -628,8 +666,10 @@ class TestQueueCallbacks:
 
         qe = QueueEngine(config, manager, path=tmp_queue_path, on_change=callback)
         item = DownloadItem.create(
-            url="https://example.com", title="Test",
-            format_id="22", options=DownloadOptions(),
+            url="https://example.com",
+            title="Test",
+            format_id="22",
+            options=DownloadOptions(),
         )
         qe.add(item)
         fired.clear()

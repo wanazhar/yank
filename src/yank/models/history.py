@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import threading
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 from yank._safe_types import _coerce_int
 from yank.constants import HISTORY_CAP
@@ -42,7 +42,7 @@ class HistoryEntry:
         filesize: int = 0,
     ) -> HistoryEntry:
         return cls(
-            date=datetime.now(timezone.utc).isoformat(),
+            date=datetime.now(UTC).isoformat(),
             title=title or "Unknown",
             url=url,
             format_id=format_id,
@@ -51,10 +51,6 @@ class HistoryEntry:
             error=error,
             filesize=filesize,
         )
-
-
-
-
 
 
 _VALID_HISTORY_STATUSES = frozenset({"success", "error", "cancelled"})
@@ -133,11 +129,7 @@ class HistoryStore:
         if not q:
             return list(self.entries)
         with self._lock:
-            return [
-                e
-                for e in self.entries
-                if q in e.title.lower() or q in e.url.lower()
-            ]
+            return [e for e in self.entries if q in e.title.lower() or q in e.url.lower()]
 
     def clear(self) -> None:
         """Remove all history."""

@@ -1,4 +1,3 @@
-
 """Tests for round-4 audit fixes: filesize=0, dead _active_count, status validation."""
 
 from __future__ import annotations
@@ -10,9 +9,7 @@ from pathlib import Path
 import pytest
 
 from yank.engine.formats import _parse_format
-from yank.engine.downloader import DownloadManager
-from yank.models.history import HistoryStore, HistoryEntry, _coerce_history_status
-
+from yank.models.history import HistoryStore, _coerce_history_status
 
 # ── D1: _parse_format filesize=0 not confused with None ────────────────────
 
@@ -21,46 +18,56 @@ class TestParseFormatFilesize:
     """D1: filesize=0 uses exact value, not approximate."""
 
     def test_filesize_zero_preserved(self):
-        fmt = _parse_format({
-            "format_id": "1",
-            "ext": "mp4",
-            "filesize": 0,
-            "filesize_approx": 5000000,
-        })
+        fmt = _parse_format(
+            {
+                "format_id": "1",
+                "ext": "mp4",
+                "filesize": 0,
+                "filesize_approx": 5000000,
+            }
+        )
         assert fmt.filesize == 0
 
     def test_filesize_absent_uses_approx(self):
-        fmt = _parse_format({
-            "format_id": "1",
-            "ext": "mp4",
-            "filesize_approx": 5000000,
-        })
+        fmt = _parse_format(
+            {
+                "format_id": "1",
+                "ext": "mp4",
+                "filesize_approx": 5000000,
+            }
+        )
         assert fmt.filesize == 5000000
 
     def test_filesize_present_ignores_approx(self):
-        fmt = _parse_format({
-            "format_id": "1",
-            "ext": "mp4",
-            "filesize": 1000000,
-            "filesize_approx": 5000000,
-        })
+        fmt = _parse_format(
+            {
+                "format_id": "1",
+                "ext": "mp4",
+                "filesize": 1000000,
+                "filesize_approx": 5000000,
+            }
+        )
         assert fmt.filesize == 1000000
 
     def test_both_absent_returns_none(self):
-        fmt = _parse_format({
-            "format_id": "1",
-            "ext": "mp4",
-        })
+        fmt = _parse_format(
+            {
+                "format_id": "1",
+                "ext": "mp4",
+            }
+        )
         assert fmt.filesize is None
 
     def test_filesize_none_uses_approx(self):
         """None is distinct from 0 — should use approx."""
-        fmt = _parse_format({
-            "format_id": "1",
-            "ext": "mp4",
-            "filesize": None,
-            "filesize_approx": 5000000,
-        })
+        fmt = _parse_format(
+            {
+                "format_id": "1",
+                "ext": "mp4",
+                "filesize": None,
+                "filesize_approx": 5000000,
+            }
+        )
         assert fmt.filesize == 5000000
 
 
@@ -88,12 +95,11 @@ class TestActiveCountRemoved:
         source = Path("src/yank/engine/downloader.py").read_text()
         # Should only appear in the class docstring or nowhere
         lines_with_active = [
-            l for l in source.splitlines()
-            if "_active_count" in l and not l.strip().startswith("#")
+            line
+            for line in source.splitlines()
+            if "_active_count" in line and not line.strip().startswith("#")
         ]
-        assert len(lines_with_active) == 0, (
-            f"_active_count referenced at: {lines_with_active}"
-        )
+        assert len(lines_with_active) == 0, f"_active_count referenced at: {lines_with_active}"
 
 
 # ── D3: history status validation ─────────────────────────────────────────
@@ -128,9 +134,14 @@ class TestHistoryStatusValidation:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "history.json"
             data = [
-                {"date": "2024-01-01", "title": "Test",
-                 "url": "https://x.com", "format_id": "22",
-                 "file_path": "/tmp/v.mp4", "status": "bad_status"},
+                {
+                    "date": "2024-01-01",
+                    "title": "Test",
+                    "url": "https://x.com",
+                    "format_id": "22",
+                    "file_path": "/tmp/v.mp4",
+                    "status": "bad_status",
+                },
             ]
             path.write_text(json.dumps(data))
 
@@ -145,9 +156,14 @@ class TestHistoryStatusValidation:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "history.json"
             data = [
-                {"date": "2024-01-01", "title": "Test",
-                 "url": "https://x.com", "format_id": "22",
-                 "file_path": "/tmp/v.mp4", "status": "success"},
+                {
+                    "date": "2024-01-01",
+                    "title": "Test",
+                    "url": "https://x.com",
+                    "format_id": "22",
+                    "file_path": "/tmp/v.mp4",
+                    "status": "success",
+                },
             ]
             path.write_text(json.dumps(data))
 

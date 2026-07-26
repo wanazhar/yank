@@ -11,11 +11,11 @@ from typing import Any, Literal
 try:
     import tomli_w
 except ImportError:
-    tomli_w = None  # type: ignore[assignment]
+    tomli_w = None
 
 from yank.constants import MAX_CONCURRENT
 from yank.logging import get_logger
-from yank.paths import CONFIG_DIR, CONFIG_PATH
+from yank.paths import CONFIG_PATH
 
 _logger = get_logger(__name__)
 
@@ -28,9 +28,7 @@ UpdateCheckInterval = Literal["always", "ask", "never"]
 class AppConfig:
     """Application configuration with sensible defaults."""
 
-    download_dir: str = field(
-        default_factory=lambda: str(Path.home() / "Downloads")
-    )
+    download_dir: str = field(default_factory=lambda: str(Path.home() / "Downloads"))
     filename_template: str = "%(title)s.%(ext)s"
     format_preference: FormatPreference = "best"
     max_concurrent: int = 1
@@ -138,9 +136,7 @@ def _toml_value(value: Any) -> str:
         escaped = value.replace("\\", "\\\\").replace('"', '\\"')
         return f'"{escaped}"'
     else:
-        raise TypeError(
-            f"Cannot serialize TOML value of type {type(value).__name__}"
-        )
+        raise TypeError(f"Cannot serialize TOML value of type {type(value).__name__}")
 
 
 def save_config(cfg: AppConfig, path: Path | None = None) -> None:
@@ -154,5 +150,3 @@ def save_config(cfg: AppConfig, path: Path | None = None) -> None:
             tomli_w.dump(data, f)
     else:
         _write_toml_manual(data, path)
-
-

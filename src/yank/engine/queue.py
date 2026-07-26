@@ -6,9 +6,9 @@ import json
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Callable
 
 from yank._safe_types import (
     _coerce_float,
@@ -27,7 +27,6 @@ from yank.models.config import AppConfig
 from yank.paths import QUEUE_PATH
 
 _logger = get_logger(__name__)
-
 
 
 @dataclass
@@ -76,7 +75,9 @@ class QueueItem:
             url=item.url,
             title=item.title,
             format_id=item.format_id,
-            status=item.status.value if isinstance(item.status, DownloadStatus) else str(item.status),
+            status=item.status.value
+            if isinstance(item.status, DownloadStatus)
+            else str(item.status),
             output_dir=opts.output_dir,
             filename_template=opts.filename_template,
             format_selector=opts.format_selector,
@@ -306,9 +307,7 @@ class QueueEngine:
             for qi in self._items:
                 if qi.id == di.id:
                     qi.status = (
-                        di.status.value
-                        if isinstance(di.status, DownloadStatus)
-                        else str(di.status)
+                        di.status.value if isinstance(di.status, DownloadStatus) else str(di.status)
                     )
                     qi.error = di.error
                     qi.file_path = di.file_path
@@ -338,7 +337,7 @@ class QueueEngine:
             )
 
     def total_progress(self) -> float:
-        """Average percent across non-terminal items (0–100)."""
+        """Average percent across non-terminal items (0-100)."""
         items = self.get_items()
         if not items:
             return 0.0
