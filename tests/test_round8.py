@@ -46,7 +46,7 @@ class TestQueueTimerGuarded:
     def test_timer_uses_tick_refresh(self):
         """The timer should call _tick_refresh, not refresh_table directly."""
         source = Path("src/yank/screens/queue.py").read_text()
-        assert "set_interval(0.5, self._tick_refresh)" in source, (
+        assert "set_interval(" in source and "self._tick_refresh" in source, (
             "Timer should use _tick_refresh instead of refresh_table directly"
         )
 

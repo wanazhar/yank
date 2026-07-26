@@ -190,7 +190,7 @@ class TestYtdlpConfigUpdate:
     def test_ytdlp_config_line_exists(self):
         """Verify the ytdlp.config update line exists in _save()."""
         source = Path("src/yank/screens/settings.py").read_text()
-        assert "self.app.ytdlp.config = cfg" in source
+        assert "self._app.ytdlp.config = cfg" in source
 
 
 # ── C5: max_concurrent ValueError surfaced ────────────────────────────────

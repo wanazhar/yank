@@ -1,0 +1,3 @@
+#!/bin/bash
+cd /home/ubuntu/work/yank
+python3 _commit.py

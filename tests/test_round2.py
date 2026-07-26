@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from yank._safe_types import _coerce_optional_str, _coerce_str_list
 from yank.engine.downloader import (
     DownloadItem,
     DownloadManager,
@@ -19,8 +20,6 @@ from yank.engine.downloader import (
 from yank.engine.queue import (
     QueueEngine,
     QueueItem,
-    _coerce_str_list,
-    _coerce_optional_str,
 )
 from yank.models.config import AppConfig
 

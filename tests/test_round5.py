@@ -9,11 +9,10 @@ from pathlib import Path
 
 import pytest
 
+from yank._safe_types import _coerce_float, _coerce_int
 from yank.engine.downloader import DownloadManager, DownloadOptions
 from yank.engine.queue import (
     QueueEngine,
-    _coerce_float,
-    _coerce_int,
 )
 
 
