@@ -13,9 +13,12 @@ try:
 except ImportError:
     tomli_w = None  # type: ignore[assignment]
 
+from yank.constants import MAX_CONCURRENT
+from yank.logging import get_logger
+from yank.paths import CONFIG_DIR, CONFIG_PATH
 
-CONFIG_DIR = Path.home() / ".config" / "yank"
-CONFIG_PATH = CONFIG_DIR / "config.toml"
+_logger = get_logger(__name__)
+
 
 FormatPreference = Literal["best", "best_video_audio", "audio_only"]
 UpdateCheckInterval = Literal["always", "ask", "never"]
@@ -38,10 +41,12 @@ class AppConfig:
     embed_subtitles: bool = False
     audio_format: str = "mp3"
     last_update_check: float = 0.0  # unix timestamp
+    enable_notifications: bool = True
+    proxy: str = ""
 
     def ensure_valid(self) -> AppConfig:
         """Clamp values to valid ranges and normalize paths."""
-        self.max_concurrent = max(1, min(5, int(self.max_concurrent)))
+        self.max_concurrent = max(1, min(MAX_CONCURRENT, int(self.max_concurrent)))
         if self.format_preference not in ("best", "best_video_audio", "audio_only"):
             self.format_preference = "best"
         if self.update_check_interval not in ("always", "ask", "never"):
@@ -50,6 +55,26 @@ class AppConfig:
             self.audio_format = "mp3"
         # Expand ~ in download dir
         self.download_dir = str(Path(self.download_dir).expanduser())
+
+        # Validate download_dir: warn if doesn't exist or not writable
+        dl_path = Path(self.download_dir)
+        if not dl_path.exists():
+            _logger.warning(
+                "Download directory does not exist: %s — will attempt to create",
+                self.download_dir,
+            )
+        elif not dl_path.is_dir():
+            _logger.warning(
+                "Download directory path is not a directory: %s — using default",
+                self.download_dir,
+            )
+            self.download_dir = str(Path.home() / "Downloads")
+        elif not os.access(str(dl_path), os.W_OK):
+            _logger.warning(
+                "Download directory is not writable: %s — downloads may fail",
+                self.download_dir,
+            )
+
         return self
 
 

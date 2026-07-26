@@ -7,6 +7,11 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlparse
 
+from yank.constants import ERROR_MSG_MAX_LEN
+from yank.logging import get_logger
+
+_logger = get_logger(__name__)
+
 
 # ── Platform detection ──────────────────────────────────────────────────────
 
@@ -43,7 +48,7 @@ def detect_platform(url: str) -> str:
         if host:
             return host.split(".")[0].title()
     except Exception:
-        pass
+        _logger.debug("Failed to parse hostname from URL", exc_info=True)
     return "Unknown"
 
 
@@ -56,6 +61,7 @@ def is_valid_url(url: str) -> bool:
         parsed = urlparse(url)
         return parsed.scheme in ("http", "https") and bool(parsed.netloc)
     except Exception:
+        _logger.debug("URL validation failed for input", exc_info=True)
         return False
 
 
@@ -424,7 +430,29 @@ def _humanize_ytdlp_error(raw: str) -> str:
         return "SSL/certificate error while connecting."
     if "is not a valid url" in lower:
         return "Invalid URL."
+
+    # --- Strip filesystem paths that may leak in yt-dlp error messages ---
+    short = re.sub(
+        r"(?:^|[\s'\"(])/(?:home|tmp|var|etc|opt|usr|mnt|media|run|srv|root)/[\S]*",
+        " [path]",
+        short,
+    )
+    short = re.sub(
+        r"(?<!\w)/(?:[\w.-]+/)+[\w.-]+(?:\.\w{1,10})?",
+        " [path]",
+        short,
+    )
+    short = re.sub(r"~/[\S]*", "[path]", short)
+    short = re.sub(
+        r"[A-Za-z]:\\(?:[\w\s.-]+\\)*[\w\s.-]+(?:\.\w{1,10})?",
+        "[path]",
+        short,
+    )
+    short = re.sub(r"'[/~][^']*'", "'[path]'", short)
+    short = re.sub(r'"[/~][^"]*"', '"[path]"', short)
+    short = re.sub(r"(?:\[path\]\s*){2,}", "[path] ", short)
+
     # Cap length
-    if len(short) > 200:
-        short = short[:197] + "..."
+    if len(short) > ERROR_MSG_MAX_LEN:
+        short = short[: ERROR_MSG_MAX_LEN - 3] + "..."
     return short or "Failed to fetch video info."

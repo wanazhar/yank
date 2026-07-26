@@ -11,8 +11,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Callable
 
+from yank.constants import ERROR_MSG_MAX_LEN
 from yank.engine.formats import FormatInfo, VideoMeta, format_selector_for
+from yank.logging import get_logger
 from yank.models.config import AppConfig
+
+_logger = get_logger(__name__)
 
 
 class DownloadStatus(str, Enum):
@@ -82,6 +86,7 @@ class DownloadOptions:
     extract_audio: bool = False
     audio_format: str = "mp3"
     custom_format: str | None = None
+    proxy: str = ""
 
 
 @dataclass
@@ -368,6 +373,11 @@ class DownloadManager:
             "noplaylist": True,
         }
 
+        # Proxy support — per-download option overrides config default
+        proxy_url = opts.proxy or self.config.proxy
+        if proxy_url and proxy_url.strip():
+            ydl_opts["proxy"] = proxy_url.strip()
+
         postprocessors: list[dict[str, Any]] = []
 
         if opts.extract_audio:
@@ -547,14 +557,14 @@ class DownloadManager:
             try:
                 self.on_progress(item)
             except Exception:
-                pass
+                _logger.debug("on_progress callback failed for %s", item.id, exc_info=True)
 
     def _notify_finished(self, item: DownloadItem) -> None:
         if self.on_finished:
             try:
                 self.on_finished(item)
             except Exception:
-                pass
+                _logger.debug("on_finished callback failed for %s", item.id, exc_info=True)
 
 
 class _CancelDownload(Exception):
@@ -572,6 +582,10 @@ def _human_rate(bps: float) -> str:
 
 
 def _humanize_download_error(raw: str) -> str:
+    """Convert a raw download error into a concise human-readable message.
+
+    Strips filesystem paths and other potentially sensitive information.
+    """
     lower = raw.lower()
     if "no space" in lower or "disk quota" in lower or "errno 28" in lower:
         return "Disk full — free up space and try again."
@@ -585,12 +599,38 @@ def _humanize_download_error(raw: str) -> str:
         return "Access forbidden while downloading."
     if "http error 404" in lower:
         return "File not found on server."
-    # First line, strip ERROR: and filesystem paths
+    # First line, strip ERROR: prefix
     line = raw.splitlines()[0] if raw else "Download failed."
     line = line.replace("ERROR:", "").strip()
-    # Strip common filesystem paths that may leak from yt-dlp errors
-    line = re.sub(r"((?:/[\w.-]+)+/\S*)", "[path]", line)
-    line = re.sub(r"([A-Za-z]:\\[\w.\\-]+\S*)", "[path]", line, flags=re.I)
-    if len(line) > 200:
-        line = line[:197] + "..."
-    return line or "Download failed."
+
+    # --- Aggressive filesystem-path sanitization ---
+    # Unix absolute paths: /home/user/..., /tmp/..., /var/..., /etc/..., /opt/...
+    line = re.sub(
+        r"(?:^|[\s'\"(])/(?:home|tmp|var|etc|opt|usr|mnt|media|run|srv|root)/[\S]*",
+        " [path]",
+        line,
+    )
+    # Other absolute paths starting with /
+    line = re.sub(
+        r"(?<!\w)/(?:[\w.-]+/)+[\w.-]+(?:\.\w{1,10})?",
+        " [path]",
+        line,
+    )
+    # Tilde-expanded paths: ~/Downloads/..., ~/.config/...
+    line = re.sub(r"~/[\S]*", "[path]", line)
+    # Windows paths: C:\..., D:\..., etc.
+    line = re.sub(
+        r"[A-Za-z]:\\(?:[\w\s.-]+\\)*[\w\s.-]+(?:\.\w{1,10})?",
+        "[path]",
+        line,
+    )
+    # Quoted paths that escaped previous patterns
+    line = re.sub(r"'[/~][^']*'", "'[path]'", line)
+    line = re.sub(r'"[/~][^"]*"', '"[path]"', line)
+
+    # Collapse multiple consecutive [path] tokens
+    line = re.sub(r"(?:\[path\]\s*){2,}", "[path] ", line)
+
+    if len(line) > ERROR_MSG_MAX_LEN:
+        line = line[: ERROR_MSG_MAX_LEN - 3] + "..."
+    return line.strip() or "Download failed."
