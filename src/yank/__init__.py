@@ -1,7 +1,10 @@
 """yank — yank the web."""
 
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 
-__version__ = version("yank-tui")
+try:
+    __version__ = version("yank-tui")
+except PackageNotFoundError:
+    __version__ = "0.2.0"  # fallback for development / editable installs
 
 __all__ = ["__version__"]

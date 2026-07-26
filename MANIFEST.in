@@ -3,3 +3,4 @@ include LICENSE
 include pyproject.toml
 graft src
 graft tests
+exclude SPEC.md STYLE.md UI_TASK.md Makefile _commit.py _run_commit
