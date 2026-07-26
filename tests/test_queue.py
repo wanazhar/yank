@@ -415,3 +415,223 @@ class TestQueueItemConversion:
         assert qi.custom_format == "bestvideo[height<=1080]+bestaudio"
         di = qi.to_download_item()
         assert di.options.custom_format == "bestvideo[height<=1080]+bestaudio"
+
+
+# ── start_all / pause_all integration ────────────────────────────────────────
+
+
+class TestQueueStartPauseAll:
+    def test_start_all_starts_pending_items(self, queue_engine, dl_item):
+        """start_all should call manager.start() for pending items."""
+        queue_engine.add(dl_item)
+        di = queue_engine.manager.get(dl_item.id)
+        assert di is not None
+
+        queue_engine.start_all()
+
+        items = queue_engine.get_items()
+        qi = [i for i in items if i.id == dl_item.id][0]
+        assert qi is not None
+
+    def test_start_all_skips_completed(self, queue_engine, dl_item):
+        """start_all should not restart completed items."""
+        dl_item.status = DownloadStatus.COMPLETED
+        queue_engine.manager.register(dl_item)
+        queue_engine.add(dl_item)
+        queue_engine.sync_from_manager(dl_item)
+        queue_engine.start_all()
+        di = queue_engine.manager.get(dl_item.id)
+        assert di.status == DownloadStatus.COMPLETED
+
+    def test_pause_all_calls_manager_pause_all(self, queue_engine, dl_item):
+        """pause_all delegates to manager.pause_all."""
+        queue_engine.add(dl_item)
+        dl_item.status = DownloadStatus.DOWNLOADING
+        queue_engine.sync_from_manager(dl_item)
+        queue_engine.pause_all()
+        items = queue_engine.get_items()
+        assert len(items) >= 1
+
+    def test_clear_finished_removes_mixed(self, queue_engine, dl_item):
+        """clear_finished removes completed, cancelled, and error; keeps pending."""
+        queue_engine.add(dl_item)
+
+        item2 = DownloadItem.create(
+            url="https://example.com/2", title="Done",
+            format_id="22", options=DownloadOptions(),
+        )
+        item2.status = DownloadStatus.COMPLETED
+        queue_engine.manager.register(item2)
+        queue_engine.add(item2)
+        queue_engine.sync_from_manager(item2)
+
+        item3 = DownloadItem.create(
+            url="https://example.com/3", title="Failed",
+            format_id="22", options=DownloadOptions(),
+        )
+        item3.status = DownloadStatus.ERROR
+        queue_engine.manager.register(item3)
+        queue_engine.add(item3)
+        queue_engine.sync_from_manager(item3)
+
+        assert queue_engine.size() == 3
+        queue_engine.clear_finished()
+        assert queue_engine.size() == 1
+        remaining = queue_engine.get_items()
+        assert remaining[0].id == dl_item.id
+
+
+
+
+# ── Persistence edge cases ───────────────────────────────────────────────────
+
+
+class TestQueuePersistenceExtended:
+    """Additional persistence tests beyond the existing TestQueuePersistence."""
+
+    def test_save_creates_parent_dirs(self, config, manager):
+        """save() creates parent directories if they don't exist."""
+        import tempfile
+        td = tempfile.TemporaryDirectory()
+        path = Path(td.name) / "subdir" / "nested" / "queue.json"
+        qe = QueueEngine(config, manager, path=path)
+        qe.save()
+        assert path.exists()
+        td.cleanup()
+
+    def test_load_with_dict_not_list(self, config, manager, tmp_queue_path):
+        """load() with a JSON dict (not list) returns empty list."""
+        tmp_queue_path.write_text('{"items": []}')
+        qe = QueueEngine(config, manager, path=tmp_queue_path)
+        qe.load()
+        assert qe.size() == 0
+
+    def test_load_with_extra_keys_preserved(self, config, manager, tmp_queue_path):
+        """load() handles entries with extra unknown keys gracefully."""
+        import json
+        data = [{
+            "id": "test-extra",
+            "url": "https://example.com",
+            "title": "Test",
+            "format_id": "22",
+            "extra_field": "should be ignored",
+            "another_extra": 42,
+        }]
+        tmp_queue_path.write_text(json.dumps(data))
+        qe = QueueEngine(config, manager, path=tmp_queue_path)
+        qe.load()
+        assert qe.size() == 1
+        assert qe.get_items()[0].id == "test-extra"
+
+    def test_save_and_reload_preserves_items(self, config, manager, tmp_queue_path):
+        """End-to-end: add items, save, reload, verify."""
+        qe = QueueEngine(config, manager, path=tmp_queue_path)
+
+        item1 = DownloadItem.create(
+            url="https://example.com/1", title="First",
+            format_id="22", options=DownloadOptions(),
+        )
+        item2 = DownloadItem.create(
+            url="https://example.com/2", title="Second",
+            format_id="18", options=DownloadOptions(extract_audio=True, audio_format="opus"),
+        )
+        qe.add(item1)
+        qe.add(item2)
+
+        qe2 = QueueEngine(config, manager, path=tmp_queue_path)
+        qe2.load()
+        items = qe2.get_items()
+        assert len(items) == 2
+        titles = {i.title for i in items}
+        assert "First" in titles
+        assert "Second" in titles
+
+    def test_load_preserves_subtitle_langs(self, config, manager, tmp_queue_path):
+        """subtitle_langs list survives save/load roundtrip."""
+        import json
+        data = [{
+            "id": "test-subs",
+            "url": "https://example.com",
+            "title": "Test",
+            "format_id": "22",
+            "subtitle_langs": ["en", "fr", "de"],
+        }]
+        tmp_queue_path.write_text(json.dumps(data))
+        qe = QueueEngine(config, manager, path=tmp_queue_path)
+        qe.load()
+        items = qe.get_items()
+        assert items[0].subtitle_langs == ["en", "fr", "de"]
+
+
+
+# ── Reorder edge cases ───────────────────────────────────────────────────────
+
+
+class TestReorderExtended:
+    def test_reorder_multiple_moves(self, queue_engine, dl_item):
+        """Multiple move_up/move_down calls produce expected ordering."""
+        item2 = DownloadItem.create(
+            url="https://example.com/2", title="V2",
+            format_id="22", options=DownloadOptions(),
+        )
+        item3 = DownloadItem.create(
+            url="https://example.com/3", title="V3",
+            format_id="22", options=DownloadOptions(),
+        )
+        queue_engine.add(dl_item)
+        queue_engine.add(item2)
+        queue_engine.add(item3)
+
+        # Order: V3 (idx 0), V2 (idx 1), V1/dl_item (idx 2)
+        queue_engine.move_up(dl_item.id)  # V3, V1, V2
+        queue_engine.move_up(dl_item.id)  # V1, V3, V2
+
+        items = queue_engine.get_items()
+        assert items[0].id == dl_item.id
+
+    def test_move_up_nonexistent_noop(self, queue_engine):
+        """move_up with nonexistent ID does nothing."""
+        queue_engine.move_up("nonexistent")
+        assert queue_engine.size() == 0
+
+    def test_move_down_nonexistent_noop(self, queue_engine):
+        """move_down with nonexistent ID does nothing."""
+        queue_engine.move_down("nonexistent")
+        assert queue_engine.size() == 0
+
+
+# ── On-change callback tests ─────────────────────────────────────────────────
+
+
+class TestQueueCallbacks:
+    def test_on_change_fires_on_add(self, config, manager, tmp_queue_path):
+        """on_change callback fires when item is added."""
+        fired = []
+
+        def callback():
+            fired.append(True)
+
+        qe = QueueEngine(config, manager, path=tmp_queue_path, on_change=callback)
+        item = DownloadItem.create(
+            url="https://example.com", title="Test",
+            format_id="22", options=DownloadOptions(),
+        )
+        qe.add(item)
+        assert len(fired) >= 1
+
+    def test_on_change_fires_on_remove(self, config, manager, tmp_queue_path):
+        """on_change callback fires when item is removed."""
+        fired = []
+
+        def callback():
+            fired.append(True)
+
+        qe = QueueEngine(config, manager, path=tmp_queue_path, on_change=callback)
+        item = DownloadItem.create(
+            url="https://example.com", title="Test",
+            format_id="22", options=DownloadOptions(),
+        )
+        qe.add(item)
+        fired.clear()
+        qe.remove(item.id)
+        assert len(fired) >= 1

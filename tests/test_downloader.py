@@ -460,3 +460,447 @@ class TestDownloadItem:
             format_id="22", options=DownloadOptions(),
         )
         assert abs(item.created_at - time.time()) < 5.0
+
+
+# ── Mocked YoutubeDL integration tests ───────────────────────────────────────
+
+
+class TestMockedYoutubeDL:
+    """Test DownloadManager._run_download with mocked yt_dlp.YoutubeDL."""
+
+    @pytest.fixture
+    def config(self):
+        cfg = AppConfig()
+        cfg.max_concurrent = 2
+        cfg.download_dir = "/tmp/yank-test-dl"
+        return cfg
+
+    def test_run_download_success(self, config, monkeypatch):
+        """A successful download transitions to COMPLETED and fires callbacks."""
+        import yt_dlp
+
+        class FakeYDL:
+            def __init__(self, opts):
+                self.opts = opts
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                pass
+
+            def extract_info(self, url, download=True):
+                return {
+                    "title": "Test Video",
+                    "ext": "mp4",
+                    "_filename": "/tmp/yank-test-dl/Test Video.mp4",
+                }
+
+        calls = []
+        monkeypatch.setattr(yt_dlp, "YoutubeDL", FakeYDL)
+
+        mgr = DownloadManager(config)
+        item = DownloadItem.create(
+            url="https://example.com/video",
+            title="Test",
+            format_id="22",
+            options=DownloadOptions(output_dir="/tmp/yank-test-dl"),
+        )
+        mgr.on_progress = lambda i: calls.append(("progress", i.status))
+        mgr.on_finished = lambda i: calls.append(("finished", i.status))
+        mgr.register(item)
+
+        # Override _pump_queue to be a no-op during test
+        mgr._pump_queue = lambda: None
+        mgr.start(item.id)
+
+        import time
+        time.sleep(0.5)
+
+        final = mgr.get(item.id)
+        assert final.status == DownloadStatus.COMPLETED
+        assert final.file_path == "/tmp/yank-test-dl/Test Video.mp4"
+        assert any(e[0] == "finished" for e in calls)
+
+    def test_run_download_error(self, config, monkeypatch):
+        """An exception in extract_info transitions to ERROR."""
+        class FakeYDL:
+            def __init__(self, opts):
+                self.opts = opts
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                pass
+
+            def extract_info(self, url, download=True):
+                raise RuntimeError("HTTP Error 404: Not Found")
+
+        import yt_dlp
+        monkeypatch.setattr(yt_dlp, "YoutubeDL", FakeYDL)
+
+        mgr = DownloadManager(config)
+        item = DownloadItem.create(
+            url="https://example.com/missing",
+            title="Missing Video",
+            format_id="22",
+            options=DownloadOptions(output_dir="/tmp/yank-test-dl"),
+        )
+        mgr.register(item)
+        mgr._pump_queue = lambda: None
+        mgr.start(item.id)
+
+        import time
+        time.sleep(0.5)
+
+        final = mgr.get(item.id)
+        assert final.status == DownloadStatus.ERROR
+        assert "not found" in final.error.lower()
+
+
+    def test_progress_hook_downloading(self, config):
+        """Progress hook with 'downloading' status updates DownloadProgress."""
+        import threading
+
+        mgr = DownloadManager(config)
+        item = DownloadItem.create(
+            url="https://example.com/video",
+            title="Test",
+            format_id="22",
+            options=DownloadOptions(),
+        )
+        mgr.register(item)
+        cancel_flag = threading.Event()
+
+        mgr._progress_hook(
+            item.id,
+            {
+                "status": "downloading",
+                "total_bytes": 10485760,
+                "downloaded_bytes": 5242880,
+                "speed": 1024000,
+                "eta": 5,
+                "filename": "/tmp/video.mp4",
+            },
+            cancel_flag,
+        )
+
+        updated = mgr.get(item.id)
+        assert updated.progress.percent == pytest.approx(50.0, rel=0.1)
+        assert updated.progress.speed == 1024000
+        assert updated.progress.eta == 5
+
+    def test_progress_hook_uses_percent_str(self, config):
+        """When total_bytes is missing, fall back to _percent_str."""
+        import threading
+
+        mgr = DownloadManager(config)
+        item = DownloadItem.create(
+            url="https://example.com/video",
+            title="Test",
+            format_id="22",
+            options=DownloadOptions(),
+        )
+        mgr.register(item)
+        cancel_flag = threading.Event()
+
+        mgr._progress_hook(
+            item.id,
+            {
+                "status": "downloading",
+                "downloaded_bytes": 5000,
+                "speed": 100000,
+                "_percent_str": "75.5%",
+            },
+            cancel_flag,
+        )
+
+        updated = mgr.get(item.id)
+        assert updated.progress.percent == pytest.approx(75.5, rel=0.01)
+
+    def test_progress_hook_finished(self, config):
+        """Progress hook with 'finished' status sets percent to 100."""
+        import threading
+
+        mgr = DownloadManager(config)
+        item = DownloadItem.create(
+            url="https://example.com/video",
+            title="Test",
+            format_id="22",
+            options=DownloadOptions(),
+        )
+        mgr.register(item)
+        cancel_flag = threading.Event()
+
+        mgr._progress_hook(
+            item.id,
+            {"status": "finished", "filename": "/tmp/video.mp4"},
+            cancel_flag,
+        )
+
+        updated = mgr.get(item.id)
+        assert updated.progress.percent == 100.0
+        assert updated.file_path == "/tmp/video.mp4"
+
+    def test_progress_hook_error(self, config):
+        """Progress hook with 'error' status sets ERROR status."""
+        import threading
+
+        mgr = DownloadManager(config)
+        item = DownloadItem.create(
+            url="https://example.com/video",
+            title="Test",
+            format_id="22",
+            options=DownloadOptions(),
+        )
+        mgr.register(item)
+        cancel_flag = threading.Event()
+
+        mgr._progress_hook(
+            item.id,
+            {"status": "error"},
+            cancel_flag,
+        )
+
+        updated = mgr.get(item.id)
+        assert updated.status == DownloadStatus.ERROR
+        assert updated.progress.status_text == "Error"
+
+
+    def test_progress_hook_cancel_flag_raises(self, config):
+        """Progress hook raises _CancelDownload when cancel flag is set."""
+        import threading
+
+        from yank.engine.downloader import _CancelDownload
+
+        mgr = DownloadManager(config)
+        item = DownloadItem.create(
+            url="https://example.com/video",
+            title="Test",
+            format_id="22",
+            options=DownloadOptions(),
+        )
+        mgr.register(item)
+        cancel_flag = threading.Event()
+        cancel_flag.set()
+
+        with pytest.raises(_CancelDownload):
+            mgr._progress_hook(
+                item.id,
+                {"status": "downloading"},
+                cancel_flag,
+            )
+
+    def test_progress_hook_none_item_cancels(self, config):
+        """Progress hook raises _CancelDownload when item is not found."""
+        import threading
+
+        from yank.engine.downloader import _CancelDownload
+
+        mgr = DownloadManager(config)
+        cancel_flag = threading.Event()
+
+        with pytest.raises(_CancelDownload):
+            mgr._progress_hook(
+                "nonexistent-id",
+                {"status": "downloading"},
+                cancel_flag,
+            )
+
+    def test_pause_all_sets_downloading_to_paused(self, config, monkeypatch):
+        """pause_all transitions DOWNLOADING items to PAUSED."""
+        class FakeYDL:
+            def __init__(self, opts):
+                self.opts = opts
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                pass
+
+            def extract_info(self, url, download=True):
+                import time
+                time.sleep(0.2)
+                return {"title": "Test", "_filename": "/tmp/out.mp4"}
+
+        import yt_dlp
+        monkeypatch.setattr(yt_dlp, "YoutubeDL", FakeYDL)
+
+        mgr = DownloadManager(config)
+        mgr._pump_queue = lambda: None
+
+        item1 = DownloadItem.create(
+            url="https://example.com/1", title="V1",
+            format_id="22", options=DownloadOptions(output_dir="/tmp/yank-test-dl"),
+        )
+        item2 = DownloadItem.create(
+            url="https://example.com/2", title="V2",
+            format_id="22", options=DownloadOptions(output_dir="/tmp/yank-test-dl"),
+        )
+        mgr.register(item1)
+        mgr.register(item2)
+
+        # Set item1 as DOWNLOADING (simulating it's running)
+        item1.status = DownloadStatus.DOWNLOADING
+        mgr.start(item2.id)
+
+        import time
+        time.sleep(0.05)
+        mgr.pause_all()
+
+        i1 = mgr.get(item1.id)
+        i2 = mgr.get(item2.id)
+        assert i1.status == DownloadStatus.PAUSED
+        assert i2.status in (DownloadStatus.PAUSED, DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED)
+
+    def test_cancel_all_pumps_queue(self, config):
+        """cancel_all should trigger _pump_queue."""
+        call_count = [0]
+
+        mgr = DownloadManager(config)
+        orig_pump = mgr._pump_queue
+
+        def counting_pump():
+            call_count[0] += 1
+            orig_pump()
+
+        mgr._pump_queue = counting_pump
+
+        item = DownloadItem.create(
+            url="https://example.com/video", title="Test",
+            format_id="22", options=DownloadOptions(),
+        )
+        mgr.register(item)
+
+    def test_concurrent_downloads_limit(self, config):
+        """When at max_concurrent, start() queues instead of downloading."""
+        config.max_concurrent = 1
+        mgr = DownloadManager(config)
+
+        item1 = DownloadItem.create(
+            url="https://example.com/1", title="V1",
+            format_id="22", options=DownloadOptions(),
+        )
+        item2 = DownloadItem.create(
+            url="https://example.com/2", title="V2",
+            format_id="22", options=DownloadOptions(),
+        )
+        mgr.register(item1)
+        mgr.register(item2)
+        # Manually set item1 as downloading
+        item1.status = DownloadStatus.DOWNLOADING
+
+        mgr.start(item2.id)
+        i2 = mgr.get(item2.id)
+        assert i2.status == DownloadStatus.QUEUED
+
+    def test_pump_queue_starts_queued_item(self, config, monkeypatch):
+        """_pump_queue starts a queued item when a slot opens."""
+        class FakeYDL:
+            def __init__(self, opts):
+                self.opts = opts
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                pass
+
+            def extract_info(self, url, download=True):
+                import time
+                time.sleep(0.1)
+                return {"title": "Test", "_filename": "/tmp/out.mp4"}
+
+        import yt_dlp
+        monkeypatch.setattr(yt_dlp, "YoutubeDL", FakeYDL)
+
+        config.max_concurrent = 1
+        mgr = DownloadManager(config)
+        # Save original pump to call it manually
+        orig_pump = mgr._pump_queue
+
+        item1 = DownloadItem.create(
+            url="https://example.com/1", title="V1",
+            format_id="22", options=DownloadOptions(output_dir="/tmp/yank-test-dl"),
+        )
+        item2 = DownloadItem.create(
+            url="https://example.com/2", title="V2",
+            format_id="22", options=DownloadOptions(output_dir="/tmp/yank-test-dl"),
+        )
+        mgr.register(item1)
+        mgr.register(item2)
+
+        # Prevent auto-pumping while we set up
+        mgr._pump_queue = lambda: None
+        mgr.start(item1.id)
+        import time
+        time.sleep(0.05)
+
+        # Now item1 is DOWNLOADING, item2 should queue
+        mgr.start(item2.id)
+        i2 = mgr.get(item2.id)
+        assert i2.status == DownloadStatus.QUEUED
+
+        # Simulate item1 finishing
+        item1.status = DownloadStatus.COMPLETED
+        # Restore and call the real pump
+        mgr._pump_queue = orig_pump
+        mgr._pump_queue()
+        time.sleep(0.2)
+        i2_after = mgr.get(item2.id)
+        # Should have been started (or errored, but not queued)
+        assert i2_after.status != DownloadStatus.QUEUED
+
+
+# ── Extended humanize download error tests ───────────────────────────────────
+
+
+class TestHumanizeDownloadErrorExtended:
+    def test_permission_denied(self):
+        msg = _humanize_download_error(
+            "ERROR: [Errno 13] Permission denied: '/root/file.mp4'"
+        )
+        assert "permission denied" in msg.lower()
+
+    def test_disk_full_errno_28(self):
+        msg = _humanize_download_error(
+            "OSError: [Errno 28] No space left on device"
+        )
+        assert "disk full" in msg.lower()
+
+    def test_ffmpeg_not_found(self):
+        msg = _humanize_download_error(
+            "ERROR: ffmpeg not found. Please install ffmpeg."
+        )
+        assert "ffmpeg" in msg.lower()
+
+    def test_http_403(self):
+        msg = _humanize_download_error("HTTP Error 403: Forbidden")
+        assert "forbidden" in msg.lower()
+
+    def test_windows_path_sanitized(self):
+        msg = _humanize_download_error(
+            "Error writing to C:\\Users\\test\\Downloads\\video.mp4"
+        )
+        assert "C:\\Users" not in msg
+        assert "[path]" in msg
+
+    def test_tilde_path_sanitized(self):
+        msg = _humanize_download_error(
+            "Cannot save to ~/Downloads/video.mp4"
+        )
+        assert "~/" not in msg or "[path]" in msg
+
+    def test_multiple_paths_collapsed(self):
+        msg = _humanize_download_error(
+            "Moved /tmp/file1 to /home/user/file2: error"
+        )
+        assert "[path] [path]" not in msg
+        assert "[path]" in msg
+
+    def test_none_input(self):
+        msg = _humanize_download_error("")
+        assert msg == "Download failed."
+

@@ -222,3 +222,109 @@ class TestConfigEdgeCases:
         save_config(cfg, tmp_config_path)
         loaded = load_config(tmp_config_path)
         assert loaded.last_update_check == 1234567890.0
+
+
+# ── Config edge cases (expanded) ─────────────────────────────────────────────
+
+
+class TestConfigEdgeCasesExpanded:
+    def test_load_config_with_missing_parent_dir(self, tmp_config_path):
+        """load_config from a path whose parent doesn't exist returns defaults."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            nonexistent = Path(td) / "nonexistent" / "config.toml"
+            cfg = load_config(nonexistent)
+            assert cfg.max_concurrent == 1
+
+    def test_save_and_reload_all_fields(self, tmp_config_path):
+        """All meaningful config fields survive save → load roundtrip."""
+        cfg = AppConfig(
+            download_dir="/tmp/dl",
+            filename_template="%(title)s-%(id)s.%(ext)s",
+            format_preference="best_video_audio",
+            max_concurrent=4,
+            default_subtitle_lang="de",
+            update_check_interval="always",
+            download_thumbnail=True,
+            embed_metadata=False,
+            embed_subtitles=True,
+            audio_format="flac",
+            last_update_check=9876543210.0,
+        ).ensure_valid()
+        save_config(cfg, tmp_config_path)
+        loaded = load_config(tmp_config_path)
+        assert loaded.download_dir == cfg.download_dir
+        assert loaded.filename_template == cfg.filename_template
+        assert loaded.format_preference == "best_video_audio"
+        assert loaded.max_concurrent == 4
+        assert loaded.default_subtitle_lang == "de"
+        assert loaded.update_check_interval == "always"
+        assert loaded.download_thumbnail is True
+        assert loaded.embed_metadata is False
+        assert loaded.embed_subtitles is True
+        assert loaded.audio_format == "flac"
+        assert loaded.last_update_check == 9876543210.0
+
+    def test_ensure_valid_download_dir_not_a_directory(self, tmp_path):
+        """If download_dir is a file, it resets to ~/Downloads."""
+        import os
+        file_path = tmp_path / "not_a_dir"
+        file_path.write_text("I am a file")
+        cfg = AppConfig(download_dir=str(file_path))
+        cfg.ensure_valid()
+        # Should reset to home Downloads
+        assert cfg.download_dir == str(Path.home() / "Downloads")
+
+    def test_ensure_valid_clamps_all_fields(self):
+        """ensure_valid clamps every field that needs clamping."""
+        cfg = AppConfig(
+            max_concurrent=0,
+            format_preference="invalid",  # type: ignore
+            update_check_interval="invalid_interval",  # type: ignore
+            audio_format="invalid_fmt",  # type: ignore
+        )
+        cfg.ensure_valid()
+        assert cfg.max_concurrent == 1
+        assert cfg.format_preference == "best"
+        assert cfg.update_check_interval == "ask"
+        assert cfg.audio_format == "mp3"
+
+    def test_load_corrupt_toml_returns_defaults(self, tmp_config_path):
+        """load_config returns defaults when TOML is syntactically invalid."""
+        tmp_config_path.write_text("this = is not valid toml [[[\n")
+        cfg = load_config(tmp_config_path)
+        assert cfg.max_concurrent == 1
+
+    def test_load_non_dict_toml_returns_defaults(self, tmp_config_path):
+        """load_config returns defaults when TOML root is not a table."""
+        tmp_config_path.write_text('key = "value"\n')
+        cfg = load_config(tmp_config_path)
+        assert cfg.max_concurrent == 1
+
+    def test_save_config_no_tomli_w(self, tmp_config_path, monkeypatch):
+        """save_config works when tomli_w is not available (manual mode)."""
+        monkeypatch.setattr(
+            "yank.models.config.tomli_w", None
+        )
+        cfg = AppConfig(
+            download_dir="/custom/dir",
+            max_concurrent=3,
+            embed_metadata=False,
+        ).ensure_valid()
+        save_config(cfg, tmp_config_path)
+        assert tmp_config_path.exists()
+        content = tmp_config_path.read_text()
+        assert "download_dir" in content
+        assert "max_concurrent" in content
+
+    def test_extra_keys_in_toml_ignored(self, tmp_config_path):
+        """Unknown keys in TOML are silently ignored during load."""
+        tmp_config_path.write_text(
+            'download_dir = "/tmp"\n'
+            'max_concurrent = 3\n'
+            'unknown_key = "should be fine"\n'
+            'another_unknown = 42\n'
+        )
+        cfg = load_config(tmp_config_path)
+        assert cfg.max_concurrent == 3
+
