@@ -166,6 +166,9 @@ class YankApp(App):
     def __init__(self) -> None:
         super().__init__()
         self.config = load_config()
+        from yank.i18n import set_language
+
+        set_language(self.config.language)
         self.history = HistoryStore()
         self.history.load()
         try:
@@ -201,6 +204,12 @@ class YankApp(App):
         self._startup_ytdlp()
         self.queue.load()
         self._apply_theme()
+        try:
+            from yank.plugins import load_plugins
+
+            load_plugins(self)
+        except Exception:
+            _logger.debug("Plugin loading failed", exc_info=True)
         self.refresh_status_bar()
         self.push_screen(URLInputScreen())
 

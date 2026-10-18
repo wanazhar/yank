@@ -175,6 +175,11 @@ class SettingsScreen(Screen):
             yield Label("History retention days (0 = keep all)", classes="set-label")
             yield Input(value=str(cfg.history_retention_days), placeholder="0", id="set-retention")
 
+            yield Label("Language (en, ...)", classes="set-label")
+            yield Input(value=cfg.language, placeholder="en", id="set-language")
+
+            yield Button("Update yank itself", id="btn-self-update")
+
             yield Label("Profile name", classes="set-label")
             yield Input(value="", placeholder="work", id="set-profile-name")
             with Horizontal():
@@ -307,6 +312,10 @@ class SettingsScreen(Screen):
             cfg.history_retention_days = int(self.query_one("#set-retention", Input).value.strip() or "0")
         except ValueError:
             pass
+        try:
+            cfg.language = self.query_one("#set-language", Input).value.strip() or "en"
+        except Exception:
+            pass
 
         try:
             th = self.query_one("#set-theme", Select).value
@@ -351,6 +360,12 @@ class SettingsScreen(Screen):
         self._app.manager.config = cfg
         self._app.queue.config = cfg
         self._app.ytdlp.config = cfg
+        try:
+            from yank.i18n import set_language
+
+            set_language(cfg.language)
+        except Exception:
+            pass
         if hasattr(self._app, "_apply_theme"):
             self._app._apply_theme()
         self._app.refresh_status_bar()
@@ -484,6 +499,17 @@ class SettingsScreen(Screen):
         self._app.refresh_status_bar()
         # Refresh form fields by re-pushing screen? Simpler: notify
         self.notify(f"Profile '{name}' loaded. Reopen settings to see values.", severity="information")
+
+    @on(Button.Pressed, "#btn-self-update")
+    def on_self_update(self) -> None:
+        from yank.engine.updater import SelfUpdater
+
+        updater = SelfUpdater()
+        available, _, msg = updater.check_for_updates()
+        self.notify(msg, severity="information" if not available else "warning")
+        if available:
+            ok, m = updater.update()
+            self.notify(m, severity="information" if ok else "error")
 
     @on(Button.Pressed, "#btn-health")
     def on_health(self) -> None:

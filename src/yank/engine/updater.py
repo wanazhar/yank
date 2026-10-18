@@ -228,3 +228,68 @@ class YtDlpManager:
             return None, "Unexpected PyPI response."
         except Exception as exc:
             return None, str(exc)[:ERROR_MSG_MAX_LEN]
+
+
+class SelfUpdater:
+    """Check for and install updates to yank itself via pip."""
+
+    PACKAGE = "yank-tui"
+
+    def __init__(self) -> None:
+        self._current = _yank_version()
+
+    def current_version(self) -> str:
+        return self._current
+
+    def check_for_updates(self) -> tuple[bool, str, str]:
+        """Return (update_available, latest_version, message)."""
+        try:
+            import json
+            import urllib.request
+
+            req = urllib.request.Request(
+                f"https://pypi.org/pypi/{self.PACKAGE}/json",
+                headers={"User-Agent": "yank-self-updater"},
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            latest = data.get("info", {}).get("version", "")
+            if not latest:
+                return False, "", "Could not determine latest version."
+            from packaging.version import Version
+
+            update = Version(latest) > Version(self._current)
+            msg = f"Update available: {self._current} → {latest}" if update else "yank is up to date."
+            return update, latest, msg
+        except Exception as exc:
+            return False, "", f"Update check failed: {exc}"
+
+    def update(self) -> tuple[bool, str]:
+        import subprocess
+        import sys
+
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "-U", self.PACKAGE],
+                capture_output=True,
+                text=True,
+                timeout=300,
+                check=False,
+            )
+            if result.returncode == 0:
+                return True, "yank updated. Restart to apply."
+            err = (result.stderr or result.stdout or "pip failed").strip()
+            lines = [ln for ln in err.splitlines() if ln.strip()]
+            short = lines[-1] if lines else "pip install failed."
+            return False, short
+        except Exception as exc:
+            return False, str(exc)
+
+
+def _yank_version() -> str:
+    try:
+        from yank import __version__
+
+        return __version__
+    except Exception:
+        return "0.0.0"
