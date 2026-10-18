@@ -105,9 +105,15 @@ def _notify_windows(title: str, body: str) -> bool:
 
 def _escape_applescript(s: str) -> str:
     """Escape a string for use inside an AppleScript string literal."""
-    return s.replace("\\", "\\\\").replace('"', '\\"')
+    return s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ").replace("\r", " ")
 
 
 def _escape_powershell(s: str) -> str:
     """Escape a string for use inside a PowerShell double-quoted string."""
-    return s.replace("`", "``").replace('"', '`"').replace("$", "`$")
+    return (
+        s.replace("`", "``")
+        .replace('"', '`"')
+        .replace("$", "`$")
+        .replace("\n", " ")
+        .replace("\r", " ")
+    )

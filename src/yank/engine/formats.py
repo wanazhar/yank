@@ -92,7 +92,7 @@ class FormatInfo:
 
     @property
     def filesize_display(self) -> str:
-        if self.filesize is None or self.filesize <= 0:
+        if self.filesize is None:
             # Estimate from bitrate if available
             return "?"
         return _human_size(self.filesize)

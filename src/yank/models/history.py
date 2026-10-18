@@ -106,13 +106,16 @@ class HistoryStore:
 
     def save(self) -> None:
         """Persist history to disk."""
-        with self._lock:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            data = [asdict(e) for e in self.entries]
-            self.path.write_text(
-                json.dumps(data, indent=2, ensure_ascii=False) + "\n",
-                encoding="utf-8",
-            )
+        try:
+            with self._lock:
+                self.path.parent.mkdir(parents=True, exist_ok=True)
+                data = [asdict(e) for e in self.entries]
+                self.path.write_text(
+                    json.dumps(data, indent=2, ensure_ascii=False) + "\n",
+                    encoding="utf-8",
+                )
+        except OSError:
+            pass
 
     def add(self, entry: HistoryEntry) -> None:
         """Prepend an entry (newest first) and save."""

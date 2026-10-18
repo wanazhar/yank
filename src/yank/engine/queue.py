@@ -244,7 +244,7 @@ class QueueEngine:
 
     def remove(self, item_id: str) -> None:
         di = self.manager.get(item_id)
-        if di and di.status == DownloadStatus.DOWNLOADING:
+        if di is not None:
             self.manager.cancel(item_id)
         with self._lock:
             self._items = [i for i in self._items if i.id != item_id]
@@ -268,6 +268,8 @@ class QueueEngine:
             if idx is None or idx == 0:
                 return
             self._items[idx], self._items[idx - 1] = self._items[idx - 1], self._items[idx]
+            for i, qi in enumerate(self._items):
+                qi.order = i
         self._emit()
 
     def move_down(self, item_id: str) -> None:
@@ -276,6 +278,8 @@ class QueueEngine:
             if idx is None or idx >= len(self._items) - 1:
                 return
             self._items[idx], self._items[idx + 1] = self._items[idx + 1], self._items[idx]
+            for i, qi in enumerate(self._items):
+                qi.order = i
         self._emit()
 
     def start_all(self) -> None:

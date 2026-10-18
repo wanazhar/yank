@@ -359,16 +359,20 @@ class DownloadManager:
         }
 
         # Proxy support — per-download option overrides config default
-        proxy_url = opts.proxy or self.config.proxy
-        if proxy_url and proxy_url.strip():
-            ydl_opts["proxy"] = proxy_url.strip()
+        config_proxy = getattr(self.config, "proxy", "") or ""
+        proxy_url = opts.proxy or config_proxy
+        if proxy_url and str(proxy_url).strip():
+            ydl_opts["proxy"] = str(proxy_url).strip()
 
         postprocessors: list[dict[str, Any]] = []
 
         if opts.extract_audio:
-            ydl_opts["format"] = opts.custom_format or (
-                item.selected_format.format_id if item.selected_format else "bestaudio/best"
-            )
+            if opts.custom_format:
+                ydl_opts["format"] = opts.custom_format
+            elif item.selected_format is not None and item.selected_format.is_audio_only:
+                ydl_opts["format"] = item.selected_format.format_id
+            else:
+                ydl_opts["format"] = "bestaudio/best"
             postprocessors.append(
                 {
                     "key": "FFmpegExtractAudio",

@@ -97,7 +97,7 @@ class StatusBar(Widget):
         if notification is not None:
             self.notification = notification
         self.refresh_disk()
-        self._render()
+        self._refresh_display()
 
     def _refresh_display(self) -> None:
         try:
