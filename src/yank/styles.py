@@ -147,6 +147,17 @@ THEME_LIGHT = """
 }
 """
 
+COMPACT_MODE = """
+.compact-mode Screen { padding: 0; }
+.compact-mode Button { padding: 0 1; }
+"""
+
+HIGH_CONTRAST = """
+.high-contrast { background: #000000; color: #ffffff; }
+.high-contrast Screen { background: #000000; color: #ffffff; }
+.high-contrast Button { background: #ffffff; color: #000000; border: solid #ffffff; }
+"""
+
 APP_CSS = (
     SCREEN_BASE
     + HEADER
@@ -158,4 +169,6 @@ APP_CSS = (
     + DATA_TABLE
     + PROGRESS_BAR
     + THEME_LIGHT
+    + COMPACT_MODE
+    + HIGH_CONTRAST
 )

@@ -60,6 +60,8 @@ class AppConfig:
     source_address: str = ""
     live_from_start: bool = False
     no_check_certificate: bool = False
+    compact_mode: bool = False
+    high_contrast: bool = False
     age_limit: int = 0
     webhook_url: str = ""
     history_retention_days: int = 0

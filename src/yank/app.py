@@ -425,6 +425,14 @@ class YankApp(App):
         else:
             self.add_class("theme-dark")
             self.remove_class("theme-light")
+        if getattr(self.config, "compact_mode", False):
+            self.add_class("compact-mode")
+        else:
+            self.remove_class("compact-mode")
+        if getattr(self.config, "high_contrast", False):
+            self.add_class("high-contrast")
+        else:
+            self.remove_class("high-contrast")
 
     def _send_webhook(self, url: str, item: DownloadItem, status: str) -> None:
         import json

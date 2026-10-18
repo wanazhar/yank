@@ -154,6 +154,12 @@ class SettingsScreen(Screen):
             yield Label("Audio normalize (default)", classes="set-label")
             yield Select([("Off", "false"), ("On", "true")], value="true" if cfg.audio_normalize else "false", id="set-normalize", allow_blank=False)
 
+            yield Label("Compact mode", classes="set-label")
+            yield Select([("Off", "false"), ("On", "true")], value="true" if cfg.compact_mode else "false", id="set-compact", allow_blank=False)
+
+            yield Label("High contrast", classes="set-label")
+            yield Select([("Off", "false"), ("On", "true")], value="true" if cfg.high_contrast else "false", id="set-contrast", allow_blank=False)
+
             yield Label("Concurrent fragments (1-16)", classes="set-label")
             yield Input(value=str(cfg.concurrent_fragments), placeholder="4", id="set-fragments")
 
@@ -282,6 +288,14 @@ class SettingsScreen(Screen):
             pass
         try:
             cfg.audio_normalize = self.query_one("#set-normalize", Select).value == "true"
+        except Exception:
+            pass
+        try:
+            cfg.compact_mode = self.query_one("#set-compact", Select).value == "true"
+        except Exception:
+            pass
+        try:
+            cfg.high_contrast = self.query_one("#set-contrast", Select).value == "true"
         except Exception:
             pass
         try:
