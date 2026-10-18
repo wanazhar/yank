@@ -30,6 +30,7 @@ class HistoryEntry:
     filesize: int = 0
     checksum: str = ""
     note: str = ""
+    favorite: bool = False
 
     @classmethod
     def create(
@@ -44,6 +45,7 @@ class HistoryEntry:
         filesize: int = 0,
         checksum: str = "",
         note: str = "",
+        favorite: bool = False,
     ) -> HistoryEntry:
         return cls(
             date=datetime.now(UTC).isoformat(),
@@ -56,6 +58,7 @@ class HistoryEntry:
             filesize=filesize,
             checksum=checksum,
             note=note,
+            favorite=favorite,
         )
 
 
@@ -105,6 +108,7 @@ class HistoryStore:
                                 filesize=_coerce_int(item.get("filesize"), 0),
                                 checksum=str(item.get("checksum") or ""),
                                 note=str(item.get("note") or ""),
+                                favorite=bool(item.get("favorite", False)),
                             )
                         )
                     except (TypeError, ValueError):
@@ -147,6 +151,16 @@ class HistoryStore:
         with self._lock:
             self.entries = []
         self.save()
+
+    def toggle_favorite(self, index: int) -> bool:
+        """Toggle favorite flag for entry at *index* (newest-first order). Returns new state."""
+        with self._lock:
+            if index < 0 or index >= len(self.entries):
+                return False
+            self.entries[index].favorite = not self.entries[index].favorite
+            new_state = self.entries[index].favorite
+        self.save()
+        return new_state
 
     def prune_older_than(self, days: int) -> int:
         """Remove entries older than *days*. Returns count removed."""

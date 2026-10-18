@@ -131,6 +131,7 @@ class HistoryScreen(Screen):
             yield Button("Copy info", id="btn-copy")
             yield Button("Export CSV", id="btn-export")
             yield Button("Import CSV", id="btn-import")
+            yield Button("Favorite", id="btn-fav")
             yield Button("Stats", id="btn-stats")
             yield Button("Clear history", id="btn-clear", variant="error")
             yield Button("Back", id="btn-back")
@@ -222,9 +223,10 @@ class HistoryScreen(Screen):
 
         for e in entries:
             date = e.date[:19].replace("T", " ") if e.date else "—"
+            title = ("★ " if getattr(e, "favorite", False) else "") + (e.title or "—")
             table.add_row(
                 date,
-                (e.title or "—")[:36],
+                title[:36],
                 (e.url or "—")[:36],
                 (e.format_id or "—")[:10],
                 (e.file_path or "—")[:28],
@@ -392,6 +394,26 @@ class HistoryScreen(Screen):
         self._app.history.clear()
         self.refresh_table()
         self.notify("History cleared.", severity="information")
+
+    @on(Button.Pressed, "#btn-fav")
+    def on_favorite(self) -> None:
+        entry = self._selected_entry()
+        if entry is None:
+            self.notify("Select a history entry first.", severity="warning")
+            return
+        store = self._app.history
+        # Find index in store
+        idx = None
+        for i, e in enumerate(store.to_list()):
+            if e.date == entry.date and e.title == entry.title:
+                idx = i
+                break
+        if idx is None:
+            self.notify("Entry not found.", severity="warning")
+            return
+        new_state = store.toggle_favorite(idx)
+        self.refresh_table()
+        self.notify("Favorited." if new_state else "Unfavorited.", severity="information")
 
     @on(Button.Pressed, "#btn-stats")
     def on_stats(self) -> None:
