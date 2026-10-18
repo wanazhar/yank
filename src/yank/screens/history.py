@@ -16,7 +16,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.screen import Screen
-from textual.widgets import Button, DataTable, Footer, Header, Input, Label
+from textual.widgets import Button, DataTable, Footer, Header, Input, Label, Select
 
 from yank.constants import FORMAT_TIMEOUT
 from yank.models.history import HistoryEntry
@@ -120,6 +120,12 @@ class HistoryScreen(Screen):
         yield Header(show_clock=True)
         yield Label("History", id="hist-header")
         yield Input(placeholder="Search title or URL…", id="hist-search")
+        yield Select(
+            [("All", "all"), ("Success", "success"), ("Error", "error"), ("Cancelled", "cancelled"), ("Favorites", "favorites")],
+            value="all",
+            id="hist-filter",
+            allow_blank=False,
+        )
         yield DataTable(id="hist-table", zebra_stripes=True, cursor_type="row")
         yield Label("", id="hist-detail")
         with Horizontal(id="hist-file-actions"):
@@ -210,6 +216,16 @@ class HistoryScreen(Screen):
             entries = store.search(query)
         else:
             entries = store.to_list()
+        # Apply status filter
+        try:
+            filt = self.query_one("#hist-filter", Select).value
+        except Exception:
+            filt = "all"
+        if filt and filt != "all":
+            if filt == "favorites":
+                entries = [e for e in entries if getattr(e, "favorite", False)]
+            else:
+                entries = [e for e in entries if e.status == filt]
         entries = self._sort_entries(entries)
         self._entries = entries
 
@@ -242,6 +258,10 @@ class HistoryScreen(Screen):
     @on(Input.Changed, "#hist-search")
     def on_search(self, event: Input.Changed) -> None:
         self.refresh_table(event.value)
+
+    @on(Select.Changed, "#hist-filter")
+    def on_filter(self, event: Select.Changed) -> None:
+        self.refresh_table(self._search_query)
 
     def action_focus_search(self) -> None:
         self.query_one("#hist-search", Input).focus()
