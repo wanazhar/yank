@@ -44,6 +44,11 @@ class AppConfig:
     last_update_check: float = 0.0  # unix timestamp
     enable_notifications: bool = True
     proxy: str = ""
+    cookies_browser: str = ""
+    cookies_file: str = ""
+    download_archive: str = ""
+    rate_limit: str = ""
+    retry_count: int = 3
 
     def ensure_valid(self) -> AppConfig:
         """Clamp values to valid ranges and normalize paths."""
@@ -58,6 +63,7 @@ class AppConfig:
             self.subtitle_format = "srt"
         if self.theme not in ("dark", "light"):
             self.theme = "dark"
+        self.retry_count = max(0, min(10, int(self.retry_count)))
         # Expand ~ in download dir
         self.download_dir = str(Path(self.download_dir).expanduser())
 

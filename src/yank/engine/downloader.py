@@ -90,6 +90,7 @@ class DownloadOptions:
     audio_format: str = "mp3"
     custom_format: str | None = None
     proxy: str = ""
+    rate_limit: str = ""
 
 
 @dataclass
@@ -380,6 +381,30 @@ class DownloadManager:
         proxy_url = opts.proxy or config_proxy
         if proxy_url and str(proxy_url).strip():
             ydl_opts["proxy"] = str(proxy_url).strip()
+
+        # Cookies
+        cookies_browser = getattr(self.config, "cookies_browser", "") or ""
+        cookies_file = getattr(self.config, "cookies_file", "") or ""
+        if cookies_browser.strip():
+            ydl_opts["cookiesfrombrowser"] = (cookies_browser.strip(),)
+        elif cookies_file.strip():
+            ydl_opts["cookiefile"] = cookies_file.strip()
+
+        # Rate limit
+        rate_limit = opts.rate_limit or getattr(self.config, "rate_limit", "") or ""
+        if rate_limit.strip():
+            ydl_opts["limit_rate"] = rate_limit.strip()
+
+        # Download archive
+        archive = getattr(self.config, "download_archive", "") or ""
+        if archive.strip():
+            ydl_opts["download_archive"] = archive.strip()
+
+        # Retries
+        retries = getattr(self.config, "retry_count", 0)
+        if retries:
+            ydl_opts["retries"] = retries
+            ydl_opts["fragment_retries"] = retries
 
         postprocessors: list[dict[str, Any]] = []
 

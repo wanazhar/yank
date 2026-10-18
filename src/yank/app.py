@@ -11,7 +11,7 @@ from textual.command import DiscoveryHit, Hit, Hits, Provider
 from textual.containers import Horizontal, Vertical
 from textual.events import Key
 from textual.screen import ModalScreen
-from textual.widgets import Button, Label
+from textual.widgets import Button, Label, TextArea
 
 from yank.engine.downloader import DownloadItem, DownloadManager, DownloadStatus
 from yank.engine.queue import QueueEngine
@@ -101,6 +101,37 @@ class YankCommandProvider(Provider):
             if (score := matcher.match(name)) > 0:
                 callback = getattr(self.app, method)
                 yield Hit(score, matcher.highlight(name), callback, help=help_text)
+
+
+class LogViewerScreen(ModalScreen[None]):
+    """Modal showing the application log."""
+
+    CSS = """
+    LogViewerScreen { align: center middle; }
+    #log-dialog { width: 90%; height: 80%; border: round #a855f7; background: #0a0a0f; padding: 1; }
+    #log-text { height: 1fr; }
+    """
+
+    def compose(self) -> ComposeResult:
+        from yank.logging import LOG_FILE
+
+        text = ""
+        try:
+            if LOG_FILE.exists():
+                text = LOG_FILE.read_text(encoding="utf-8")[-50000:]
+        except OSError:
+            text = "Could not read log file."
+        with Vertical(id="log-dialog"):
+            yield TextArea(text, id="log-text", read_only=True)
+            yield Button("Close", id="btn-close")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(None)
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "escape":
+            self.dismiss(None)
+            event.stop()
 
 
 class YankApp(App):

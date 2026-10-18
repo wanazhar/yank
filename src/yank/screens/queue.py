@@ -12,7 +12,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.screen import Screen
-from textual.widgets import Button, DataTable, Footer, Header, Label
+from textual.widgets import Button, DataTable, Footer, Header, Input, Label
 
 from yank.constants import QUEUE_POLL_INTERVAL
 from yank.engine.downloader import DownloadStatus
@@ -77,6 +77,7 @@ class QueueScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield Label("Download Queue", id="q-header")
+        yield Input(placeholder="Search title or URL…", id="q-search")
         yield QueueProgressSummary(id="q-summary")
         yield Label(
             "↑↓ select · u/d reorder · Delete remove · s start all · p pause all",
@@ -105,6 +106,10 @@ class QueueScreen(Screen):
     def on_screen_resume(self) -> None:
         self.refresh_table()
 
+    @on(Input.Changed, "#q-search")
+    def on_search(self, event: Input.Changed) -> None:
+        self.refresh_table()
+
     def _tick_refresh(self) -> None:
         """Refresh table only when this screen is visible."""
         if self.app.screen is self:
@@ -117,7 +122,13 @@ class QueueScreen(Screen):
         # Remember cursor
         cursor = table.cursor_row
         table.clear()
+        try:
+            q = self.query_one("#q-search", Input).value.strip().lower()
+        except Exception:
+            q = ""
         items = queue.get_items()
+        if q:
+            items = [qi for qi in items if q in (qi.title or "").lower() or q in (qi.url or "").lower()]
         for i, qi in enumerate(items):
             di = manager.get(qi.id)
             status = qi.status

@@ -129,6 +129,7 @@ class HistoryScreen(Screen):
         with Horizontal(id="hist-actions"):
             yield Button("Re-download", variant="primary", id="btn-redownload")
             yield Button("Copy info", id="btn-copy")
+            yield Button("Export CSV", id="btn-export")
             yield Button("Clear history", id="btn-clear", variant="error")
             yield Button("Back", id="btn-back")
         yield Footer()
@@ -389,6 +390,26 @@ class HistoryScreen(Screen):
         self._app.history.clear()
         self.refresh_table()
         self.notify("History cleared.", severity="information")
+
+    @on(Button.Pressed, "#btn-export")
+    def on_export(self) -> None:
+        import csv
+        from pathlib import Path
+
+        entries = self._app.history.to_list()
+        out = Path(self._app.config.download_dir) / "yank_history.csv"
+        try:
+            out.parent.mkdir(parents=True, exist_ok=True)
+            with open(out, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["Date", "Title", "URL", "Format", "File", "Status", "Size", "Error"])
+                for e in entries:
+                    writer.writerow(
+                        [e.date, e.title, e.url, e.format_id, e.file_path, e.status, e.filesize, e.error]
+                    )
+            self.notify(f"Exported {len(entries)} entries to {out}", severity="information")
+        except OSError as exc:
+            self.notify(f"Export failed: {exc}", severity="error")
 
     def action_go_back(self) -> None:
         self.app.pop_screen()

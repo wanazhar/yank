@@ -133,6 +133,21 @@ class SettingsScreen(Screen):
             yield Label("Proxy URL (e.g. http://127.0.0.1:8080)", classes="set-label")
             yield Input(value=cfg.proxy, placeholder="http://proxy:port", id="set-proxy")
 
+            yield Label("Cookies from browser (chrome/firefox/edge/brave/safari)", classes="set-label")
+            yield Input(value=cfg.cookies_browser, placeholder="chrome", id="set-cookies-browser")
+
+            yield Label("Cookies file (Netscape cookies.txt)", classes="set-label")
+            yield Input(value=cfg.cookies_file, placeholder="/path/to/cookies.txt", id="set-cookies-file")
+
+            yield Label("Download archive file (skip already-downloaded)", classes="set-label")
+            yield Input(value=cfg.download_archive, placeholder="/path/to/archive.txt", id="set-archive")
+
+            yield Label("Rate limit (e.g. 1M, 500K)", classes="set-label")
+            yield Input(value=cfg.rate_limit, placeholder="1M", id="set-rate-limit")
+
+            yield Label("Retry count (0-10)", classes="set-label")
+            yield Input(value=str(cfg.retry_count), placeholder="3", id="set-retry-count")
+
             yield Label("yt-dlp update check", classes="set-label")
             yield Select(
                 [
@@ -165,6 +180,8 @@ class SettingsScreen(Screen):
         yield Label("", id="set-status")
         with Horizontal(id="set-actions"):
             yield Button("Save", variant="primary", id="btn-save")
+            yield Button("View log", id="btn-log")
+            yield Button("Health check", id="btn-health")
             yield Button("Back", id="btn-back")
         yield Footer()
 
@@ -212,6 +229,15 @@ class SettingsScreen(Screen):
 
         proxy = self.query_one("#set-proxy", Input).value.strip()
         cfg.proxy = proxy
+
+        cfg.cookies_browser = self.query_one("#set-cookies-browser", Input).value.strip()
+        cfg.cookies_file = self.query_one("#set-cookies-file", Input).value.strip()
+        cfg.download_archive = self.query_one("#set-archive", Input).value.strip()
+        cfg.rate_limit = self.query_one("#set-rate-limit", Input).value.strip()
+        try:
+            cfg.retry_count = int(self.query_one("#set-retry-count", Input).value.strip() or "3")
+        except ValueError:
+            pass
 
         try:
             th = self.query_one("#set-theme", Select).value
@@ -338,6 +364,37 @@ class SettingsScreen(Screen):
             self._app.refresh_status_bar()
 
         self.app.call_from_thread(_apply)
+
+    @on(Button.Pressed, "#btn-log")
+    def on_view_log(self) -> None:
+        from yank.app import LogViewerScreen
+
+        self.app.push_screen(LogViewerScreen())
+
+    @on(Button.Pressed, "#btn-health")
+    def on_health(self) -> None:
+        import shutil
+
+        msgs = []
+        # ffmpeg
+        if shutil.which("ffmpeg"):
+            msgs.append("ffmpeg: OK")
+        else:
+            msgs.append("ffmpeg: MISSING")
+        # yt-dlp
+        if self._app.ytdlp.is_installed():
+            msgs.append(f"yt-dlp: {self._app.ytdlp.current_version()}")
+        else:
+            msgs.append("yt-dlp: MISSING")
+        # network (quick)
+        try:
+            import urllib.request
+
+            urllib.request.urlopen("https://pypi.org", timeout=5).close()
+            msgs.append("network: OK")
+        except Exception:
+            msgs.append("network: FAIL")
+        self.notify(" | ".join(msgs), severity="information", timeout=10)
 
     def action_go_back(self) -> None:
         self.app.pop_screen()
