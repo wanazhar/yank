@@ -197,6 +197,19 @@ class OptionsScreen(Screen):
                 id="opt-custom-fmt",
             )
 
+            yield Label("Proxy URL (overrides global; blank uses default)", classes="opt-label")
+            yield Input(
+                value="",
+                placeholder="http://proxy:port",
+                id="opt-proxy",
+            )
+
+            yield Checkbox(
+                "Save subtitles as separate file",
+                value=False,
+                id="opt-write-subs",
+            )
+
         yield Label("", id="opt-error")
         with Horizontal(id="opt-actions"):
             yield Button("Download", variant="primary", id="btn-download")
@@ -263,6 +276,12 @@ class OptionsScreen(Screen):
                 except Exception:
                     sub_langs = [cfg.default_subtitle_lang]
 
+        write_subs_file = False
+        try:
+            write_subs_file = self.query_one("#opt-write-subs", Checkbox).value
+        except Exception:
+            _logger.debug("Failed to read write-subs checkbox", exc_info=True)
+
         audio_format = cfg.audio_format
         try:
             af = self.query_one("#opt-aformat", Select).value
@@ -272,6 +291,10 @@ class OptionsScreen(Screen):
             _logger.debug("Failed to read audio format select", exc_info=True)
 
         custom = self.query_one("#opt-custom-fmt", Input).value.strip() or None
+        try:
+            proxy_val = self.query_one("#opt-proxy", Input).value.strip()
+        except Exception:
+            proxy_val = ""
         selector = format_selector_for(
             self.selected_format,
             audio_only=audio_only,
@@ -286,9 +309,12 @@ class OptionsScreen(Screen):
             embed_metadata=embed_meta,
             embed_subtitles=embed_subs,
             subtitle_langs=sub_langs,
+            write_subtitles_file=write_subs_file,
+            subtitle_format=cfg.subtitle_format,
             extract_audio=audio_only,
             audio_format=audio_format,
             custom_format=custom,
+            proxy=proxy_val,
         )
 
     def _make_item(self, opts: DownloadOptions) -> DownloadItem:
@@ -371,9 +397,12 @@ class OptionsScreen(Screen):
                     embed_metadata=opts.embed_metadata,
                     embed_subtitles=opts.embed_subtitles,
                     subtitle_langs=list(opts.subtitle_langs),
+                    write_subtitles_file=opts.write_subtitles_file,
+                    subtitle_format=opts.subtitle_format,
                     extract_audio=opts.extract_audio,
                     audio_format=opts.audio_format,
                     custom_format=opts.custom_format,
+                    proxy=opts.proxy,
                 )
                 item = DownloadItem.create(
                     url=url,

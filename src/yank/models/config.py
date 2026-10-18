@@ -38,6 +38,9 @@ class AppConfig:
     embed_metadata: bool = True
     embed_subtitles: bool = False
     audio_format: str = "mp3"
+    subtitle_format: str = "srt"
+    download_playlist: bool = False
+    theme: str = "dark"
     last_update_check: float = 0.0  # unix timestamp
     enable_notifications: bool = True
     proxy: str = ""
@@ -51,6 +54,10 @@ class AppConfig:
             self.update_check_interval = "ask"
         if self.audio_format not in ("mp3", "m4a", "opus", "flac"):
             self.audio_format = "mp3"
+        if self.subtitle_format not in ("srt", "vtt", "ass", "lrc"):
+            self.subtitle_format = "srt"
+        if self.theme not in ("dark", "light"):
+            self.theme = "dark"
         # Expand ~ in download dir
         self.download_dir = str(Path(self.download_dir).expanduser())
 

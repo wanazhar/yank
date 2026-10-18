@@ -7,6 +7,7 @@ from typing import ClassVar, Literal
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.command import DiscoveryHit, Hit, Hits, Provider
 from textual.containers import Horizontal, Vertical
 from textual.events import Key
 from textual.screen import ModalScreen
@@ -73,6 +74,35 @@ class QuitConfirmScreen(ModalScreen[bool]):
             event.stop()
 
 
+_PALETTE_COMMANDS = [
+    ("Open Queue", "action_open_queue_palette", "Show download queue"),
+    ("Open History", "action_open_history_palette", "Show download history"),
+    ("Open Settings", "action_open_settings_palette", "Open settings"),
+    ("Start all downloads", "action_start_all_palette", "Start queued items"),
+    ("Pause all downloads", "action_pause_all_palette", "Pause active downloads"),
+    ("Go home", "action_go_home_palette", "Return to URL input"),
+    ("Toggle theme", "action_toggle_theme_palette", "Switch dark/light theme"),
+    ("Check for updates", "action_check_updates_palette", "Check yt-dlp updates"),
+    ("Quit", "action_quit", "Exit yank"),
+]
+
+
+class YankCommandProvider(Provider):
+    """Command palette entries for yank."""
+
+    async def discover(self) -> Hits:
+        for name, method, help_text in _PALETTE_COMMANDS:
+            callback = getattr(self.app, method)
+            yield DiscoveryHit(name, callback, help=help_text)
+
+    async def search(self, query: str) -> Hits:
+        matcher = self.matcher(query)
+        for name, method, help_text in _PALETTE_COMMANDS:
+            if (score := matcher.match(name)) > 0:
+                callback = getattr(self.app, method)
+                yield Hit(score, matcher.highlight(name), callback, help=help_text)
+
+
 class YankApp(App):
     """yank — yank the web.
 
@@ -84,6 +114,8 @@ class YankApp(App):
     TITLE = "yank"
     SUB_TITLE = "yank the web"
     CSS = APP_CSS
+    ENABLE_COMMAND_PALETTE = True
+    COMMANDS: ClassVar = {YankCommandProvider}
 
     BINDINGS: ClassVar = [
         Binding("ctrl+c", "quit", "Quit", show=False, priority=True),
@@ -133,6 +165,7 @@ class YankApp(App):
     def on_mount(self) -> None:
         self._startup_ytdlp()
         self.queue.load()
+        self._apply_theme()
         self.refresh_status_bar()
         self.push_screen(URLInputScreen())
 
@@ -278,6 +311,54 @@ class YankApp(App):
             _logger.debug(
                 "call_from_thread(refresh_status_bar) failed from _on_queue_change", exc_info=True
             )
+
+    def action_open_queue_palette(self) -> None:
+        from yank.screens.queue import QueueScreen
+
+        self.push_screen(QueueScreen())
+
+    def action_open_history_palette(self) -> None:
+        from yank.screens.history import HistoryScreen
+
+        self.push_screen(HistoryScreen())
+
+    def action_open_settings_palette(self) -> None:
+        from yank.screens.settings import SettingsScreen
+
+        self.push_screen(SettingsScreen())
+
+    def action_start_all_palette(self) -> None:
+        self.queue.start_all()
+        self.refresh_status_bar()
+
+    def action_pause_all_palette(self) -> None:
+        self.queue.pause_all()
+        self.refresh_status_bar()
+
+    def action_go_home_palette(self) -> None:
+        while len(self.screen_stack) > 1:
+            self.pop_screen()
+
+    def action_toggle_theme_palette(self) -> None:
+        self.config.theme = "light" if self.config.theme == "dark" else "dark"
+        self.config.ensure_valid()
+        try:
+            save_config(self.config)
+        except OSError:
+            pass
+        self._apply_theme()
+        self.refresh_status_bar()
+
+    def action_check_updates_palette(self) -> None:
+        self._startup_ytdlp()
+
+    def _apply_theme(self) -> None:
+        if self.config.theme == "light":
+            self.add_class("theme-light")
+            self.remove_class("theme-dark")
+        else:
+            self.add_class("theme-dark")
+            self.remove_class("theme-light")
 
     async def action_quit(self) -> None:
         confirmed = await self.push_screen_wait(QuitConfirmScreen())

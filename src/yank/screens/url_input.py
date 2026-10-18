@@ -13,7 +13,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Input, Label, Static, TextArea
+from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Static, TextArea
 
 from yank.constants import FORMAT_TIMEOUT
 from yank.engine.formats import detect_platform, is_valid_url
@@ -160,6 +160,7 @@ class URLInputScreen(Screen):
             )
             yield TextArea(id="url-multi", classes="")
             yield Label("", id="platform-label")
+            yield Checkbox("Playlist mode (fetch all entries)", value=False, id="opt-playlist")
             yield Label("", id="url-error")
             with Horizontal(id="url-buttons"):
                 yield Button("Continue", variant="primary", id="btn-continue")
@@ -174,6 +175,12 @@ class URLInputScreen(Screen):
     def on_mount(self) -> None:
         self.query_one("#url-input", Input).focus()
         self._batch_mode = False
+        try:
+            self.query_one("#opt-playlist", Checkbox).value = bool(
+                getattr(self._app.config, "download_playlist", False)
+            )
+        except Exception:
+            pass
         self._detect_clipboard_url()
 
     def _detect_clipboard_url(self) -> None:
@@ -288,8 +295,13 @@ class URLInputScreen(Screen):
             return
 
         self.query_one("#url-error", Label).update("")
+        playlist_mode = False
+        try:
+            playlist_mode = self.query_one("#opt-playlist", Checkbox).value
+        except Exception:
+            pass
         # First URL goes to format select; extras go to batch queue after options
-        self._fetch_and_proceed(urls)
+        self._fetch_and_proceed(urls, playlist_mode=playlist_mode)
 
     def _collect_urls(self) -> list[str]:
         if getattr(self, "_batch_mode", False):
@@ -305,9 +317,21 @@ class URLInputScreen(Screen):
         return [single]
 
     @work(exclusive=True, thread=True)
-    def _fetch_and_proceed(self, urls: list[str]) -> None:
-        from yank.engine.formats import FormatExtractError, extract_formats
+    def _fetch_and_proceed(self, urls: list[str], playlist_mode: bool = False) -> None:
+        from yank.engine.formats import (
+            FormatExtractError,
+            extract_formats,
+            extract_playlist_entries,
+        )
         from yank.screens.format_select import FormatSelectScreen
+
+        if playlist_mode and len(urls) == 1:
+            try:
+                entries = extract_playlist_entries(urls[0], timeout=FORMAT_TIMEOUT)
+                if entries:
+                    urls = [u for u, _ in entries]
+            except Exception:
+                pass
 
         self.app.call_from_thread(
             lambda: self.query_one("#url-error", Label).update(

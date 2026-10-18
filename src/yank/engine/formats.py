@@ -400,6 +400,51 @@ def format_selector_for(
     return fmt.format_id or "best"
 
 
+def extract_playlist_entries(url: str, *, timeout: int = 60) -> list[tuple[str, str]]:
+    """Return (url, title) pairs for a playlist URL using flat extraction."""
+    url = url.strip()
+    if not is_valid_url(url):
+        return [(url, "Unknown")]
+    try:
+        import yt_dlp
+    except ImportError:
+        return [(url, "Unknown")]
+
+    ydl_opts: dict[str, Any] = {
+        "quiet": True,
+        "no_warnings": True,
+        "skip_download": True,
+        "extract_flat": True,
+        "noplaylist": False,
+        "socket_timeout": timeout,
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except Exception:
+        return [(url, "Unknown")]
+
+    if info is None:
+        return [(url, "Unknown")]
+
+    if info.get("_type") not in ("playlist", "multi_video"):
+        title = str(info.get("title") or "Unknown")
+        webpage = str(info.get("webpage_url") or url)
+        return [(webpage, title)]
+
+    entries = [e for e in (info.get("entries") or []) if e]
+    out: list[tuple[str, str]] = []
+    for e in entries:
+        eurl = e.get("url") or e.get("webpage_url")
+        if not eurl and e.get("id"):
+            eurl = f"https://www.youtube.com/watch?v={e.get('id')}"
+        if not eurl:
+            continue
+        title = str(e.get("title") or "Unknown")
+        out.append((str(eurl), title))
+    return out if out else [(url, "Unknown")]
+
+
 def _humanize_ytdlp_error(raw: str) -> str:
     """Convert yt-dlp exception text into a short human message."""
     lower = raw.lower()

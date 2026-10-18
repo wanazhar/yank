@@ -145,6 +145,14 @@ class SettingsScreen(Screen):
                 allow_blank=False,
             )
 
+            yield Label("Theme", classes="set-label")
+            yield Select(
+                [("Dark", "dark"), ("Light", "light")],
+                value=cfg.theme,
+                id="set-theme",
+                allow_blank=False,
+            )
+
             with Vertical(id="set-ytdlp-box"):
                 yield Label("yt-dlp management", classes="set-label")
                 yield Label("Version: …", id="set-ytdlp-ver")
@@ -206,6 +214,13 @@ class SettingsScreen(Screen):
         cfg.proxy = proxy
 
         try:
+            th = self.query_one("#set-theme", Select).value
+            if th and th != Select.BLANK:
+                cfg.theme = str(th)
+        except Exception:
+            _logger.debug("Failed to read theme from settings", exc_info=True)
+
+        try:
             fp = self.query_one("#set-format-pref", Select).value
             if fp and fp != Select.BLANK:
                 cfg.format_preference = str(fp)  # type: ignore[assignment]
@@ -241,6 +256,8 @@ class SettingsScreen(Screen):
         self._app.manager.config = cfg
         self._app.queue.config = cfg
         self._app.ytdlp.config = cfg
+        if hasattr(self._app, "_apply_theme"):
+            self._app._apply_theme()
         self._app.refresh_status_bar()
         status.update("Settings saved.")
         self.notify("Settings saved.", severity="information")

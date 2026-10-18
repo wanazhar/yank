@@ -84,6 +84,8 @@ class DownloadOptions:
     embed_metadata: bool = True
     embed_subtitles: bool = False
     subtitle_langs: list[str] = field(default_factory=list)
+    write_subtitles_file: bool = False
+    subtitle_format: str = "srt"
     extract_audio: bool = False
     audio_format: str = "mp3"
     custom_format: str | None = None
@@ -278,6 +280,21 @@ class DownloadManager:
         """Start as many queued items as concurrency allows."""
         self._pump_queue()
 
+    def retry(self, item_id: str) -> None:
+        """Reset a failed/cancelled item and restart it."""
+        item = self.get(item_id)
+        if item is None:
+            return
+        with self._lock:
+            if item.status not in (DownloadStatus.ERROR, DownloadStatus.CANCELLED):
+                return
+            item.status = DownloadStatus.PENDING
+            item.error = ""
+            item.progress = DownloadProgress()
+            flag = self._cancel_flags.setdefault(item_id, threading.Event())
+            flag.clear()
+        self.start(item_id)
+
     def pause_all(self) -> None:
         for item in self.all_items():
             if item.status in (DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED):
@@ -388,14 +405,14 @@ class DownloadManager:
             ydl_opts["writethumbnail"] = True
             postprocessors.append({"key": "EmbedThumbnail", "already_have_thumbnail": False})
 
-        if opts.embed_subtitles and opts.subtitle_langs:
+        # Subtitle handling: sidecar file and/or embed
+        if opts.write_subtitles_file or opts.embed_subtitles:
             ydl_opts["writesubtitles"] = True
-            ydl_opts["subtitleslangs"] = opts.subtitle_langs
-            postprocessors.append({"key": "FFmpegEmbedSubtitle"})
-        elif opts.embed_subtitles:
-            ydl_opts["writesubtitles"] = True
-            ydl_opts["subtitleslangs"] = ["en"]
-            postprocessors.append({"key": "FFmpegEmbedSubtitle"})
+            langs = opts.subtitle_langs if opts.subtitle_langs else ["en"]
+            ydl_opts["subtitleslangs"] = langs
+            ydl_opts["subtitlesformat"] = opts.subtitle_format or "srt"
+            if opts.embed_subtitles:
+                postprocessors.append({"key": "FFmpegEmbedSubtitle"})
 
         if postprocessors:
             ydl_opts["postprocessors"] = postprocessors

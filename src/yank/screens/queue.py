@@ -90,6 +90,7 @@ class QueueScreen(Screen):
             yield Button("Move up", id="btn-up")
             yield Button("Move down", id="btn-down")
             yield Button("Clear finished", id="btn-clear")
+            yield Button("Retry failed", id="btn-retry", variant="primary")
             yield Button("Downloads", id="btn-downloads")
             yield Button("Back", id="btn-back")
         yield Footer()
@@ -221,6 +222,12 @@ class QueueScreen(Screen):
     def on_clear(self) -> None:
         self._app.queue.clear_finished()
         self.refresh_table()
+
+    @on(Button.Pressed, "#btn-retry")
+    def on_retry(self) -> None:
+        count = self._app.queue.retry_failed()
+        self.refresh_table()
+        self.notify(f"Retried {count} failed download(s).", severity="information")
 
     @on(Button.Pressed, "#btn-downloads")
     def on_downloads(self) -> None:

@@ -123,6 +123,30 @@ ACTION_BUTTONS = """
 """
 
 # ── Full shared bundle (used by YankApp.CSS) ────────────────────────────────
+THEME_LIGHT = """
+.theme-light {
+    background: #f8fafc;
+    color: #0f172a;
+}
+.theme-light Screen {
+    background: #f8fafc;
+    color: #0f172a;
+}
+.theme-light Header {
+    background: #f8fafc;
+    color: #7c3aed;
+}
+.theme-light Footer {
+    background: #f8fafc;
+    color: #475569;
+}
+.theme-light Input, .theme-light TextArea {
+    background: #ffffff;
+    color: #0f172a;
+    border: solid #7c3aed;
+}
+"""
+
 APP_CSS = (
     SCREEN_BASE
     + HEADER
@@ -133,4 +157,5 @@ APP_CSS = (
     + INPUTS
     + DATA_TABLE
     + PROGRESS_BAR
+    + THEME_LIGHT
 )

@@ -45,6 +45,8 @@ class QueueItem:
     embed_metadata: bool = True
     embed_subtitles: bool = False
     subtitle_langs: list[str] = field(default_factory=list)
+    write_subtitles_file: bool = False
+    subtitle_format: str = "srt"
     extract_audio: bool = False
     audio_format: str = "mp3"
     custom_format: str | None = None
@@ -62,6 +64,8 @@ class QueueItem:
             embed_metadata=self.embed_metadata,
             embed_subtitles=self.embed_subtitles,
             subtitle_langs=list(self.subtitle_langs),
+            write_subtitles_file=self.write_subtitles_file,
+            subtitle_format=self.subtitle_format,
             extract_audio=self.extract_audio,
             audio_format=self.audio_format,
             custom_format=self.custom_format,
@@ -85,6 +89,8 @@ class QueueItem:
             embed_metadata=opts.embed_metadata,
             embed_subtitles=opts.embed_subtitles,
             subtitle_langs=list(opts.subtitle_langs),
+            write_subtitles_file=opts.write_subtitles_file,
+            subtitle_format=opts.subtitle_format,
             extract_audio=opts.extract_audio,
             audio_format=opts.audio_format,
             custom_format=opts.custom_format,
@@ -173,6 +179,8 @@ class QueueEngine:
                             embed_metadata=bool(data.get("embed_metadata", True)),
                             embed_subtitles=bool(data.get("embed_subtitles", False)),
                             subtitle_langs=_coerce_str_list(data.get("subtitle_langs")),
+                            write_subtitles_file=bool(data.get("write_subtitles_file", False)),
+                            subtitle_format=str(data.get("subtitle_format") or "srt"),
                             extract_audio=bool(data.get("extract_audio", False)),
                             audio_format=str(data.get("audio_format") or "mp3"),
                             custom_format=_coerce_optional_str(data.get("custom_format")),
@@ -371,3 +379,17 @@ class QueueEngine:
                 )
             ]
         self._emit()
+
+    def retry_failed(self) -> int:
+        """Reset and restart all failed items. Returns count retried."""
+        ids = [i.id for i in self.get_items() if i.status == DownloadStatus.ERROR.value]
+        count = 0
+        for item_id in ids:
+            di = self.manager.get(item_id)
+            if di is None:
+                continue
+            self.manager.retry(item_id)
+            self.sync_from_manager(di)
+            count += 1
+        self._emit()
+        return count
