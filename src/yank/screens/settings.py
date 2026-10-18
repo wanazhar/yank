@@ -169,6 +169,9 @@ class SettingsScreen(Screen):
             yield Label("SponsorBlock mark (comma categories)", classes="set-label")
             yield Input(value=cfg.sponsorblock_mark, placeholder="sponsor,intro", id="set-sb-mark")
 
+            yield Label("Webhook URL (POST on completion)", classes="set-label")
+            yield Input(value=cfg.webhook_url, placeholder="https://example.com/hook", id="set-webhook")
+
             yield Label("Profile name", classes="set-label")
             yield Input(value="", placeholder="work", id="set-profile-name")
             with Horizontal():
@@ -291,6 +294,10 @@ class SettingsScreen(Screen):
             pass
         try:
             cfg.sponsorblock_mark = self.query_one("#set-sb-mark", Input).value.strip()
+        except Exception:
+            pass
+        try:
+            cfg.webhook_url = self.query_one("#set-webhook", Input).value.strip()
         except Exception:
             pass
 

@@ -312,6 +312,10 @@ class YankApp(App):
             except Exception:
                 _logger.debug("Failed to add history entry for %s", item.title, exc_info=True)
 
+            webhook = getattr(self.config, "webhook_url", "") or ""
+            if webhook.strip():
+                self._send_webhook(webhook.strip(), item, hist_status)
+
         def _notify() -> None:
             self.refresh_status_bar()
             if item.status == DownloadStatus.COMPLETED:
@@ -390,6 +394,26 @@ class YankApp(App):
         else:
             self.add_class("theme-dark")
             self.remove_class("theme-light")
+
+    def _send_webhook(self, url: str, item: DownloadItem, status: str) -> None:
+        import json
+        import urllib.request
+
+        payload = {
+            "title": item.title,
+            "url": item.url,
+            "status": status,
+            "file_path": item.file_path,
+            "error": item.error,
+        }
+        try:
+            data = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                url, data=data, headers={"Content-Type": "application/json"}, method="POST"
+            )
+            urllib.request.urlopen(req, timeout=10).close()
+        except Exception:
+            _logger.debug("Webhook delivery failed", exc_info=True)
 
     async def action_quit(self) -> None:
         confirmed = await self.push_screen_wait(QuitConfirmScreen())

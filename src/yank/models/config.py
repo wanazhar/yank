@@ -59,6 +59,7 @@ class AppConfig:
     continue_dl: bool = True
     source_address: str = ""
     live_from_start: bool = False
+    webhook_url: str = ""
     sleep_interval: float = 0.0
     sponsorblock_mark: str = ""
     retry_count: int = 3
