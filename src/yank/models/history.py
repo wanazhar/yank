@@ -29,6 +29,7 @@ class HistoryEntry:
     error: str = ""
     filesize: int = 0
     checksum: str = ""
+    note: str = ""
 
     @classmethod
     def create(
@@ -42,6 +43,7 @@ class HistoryEntry:
         error: str = "",
         filesize: int = 0,
         checksum: str = "",
+        note: str = "",
     ) -> HistoryEntry:
         return cls(
             date=datetime.now(UTC).isoformat(),
@@ -53,6 +55,7 @@ class HistoryEntry:
             error=error,
             filesize=filesize,
             checksum=checksum,
+            note=note,
         )
 
 
@@ -101,6 +104,7 @@ class HistoryStore:
                                 error=str(item.get("error") or ""),
                                 filesize=_coerce_int(item.get("filesize"), 0),
                                 checksum=str(item.get("checksum") or ""),
+                                note=str(item.get("note") or ""),
                             )
                         )
                     except (TypeError, ValueError):

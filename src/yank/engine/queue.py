@@ -59,6 +59,7 @@ class QueueItem:
     download_sections: str = ""
     meta_title: str = ""
     meta_artist: str = ""
+    note: str = ""
     error: str = ""
     file_path: str = ""
     created_at: float = field(default_factory=time.time)
@@ -87,6 +88,7 @@ class QueueItem:
             download_sections=self.download_sections,
             meta_title=self.meta_title,
             meta_artist=self.meta_artist,
+            note=self.note,
         )
 
     @classmethod
@@ -121,6 +123,7 @@ class QueueItem:
             download_sections=opts.download_sections,
             meta_title=opts.meta_title,
             meta_artist=opts.meta_artist,
+            note=opts.note,
             error=item.error,
             file_path=item.file_path,
             created_at=item.created_at,
@@ -220,6 +223,7 @@ class QueueEngine:
                             download_sections=str(data.get("download_sections") or ""),
                             meta_title=str(data.get("meta_title") or ""),
                             meta_artist=str(data.get("meta_artist") or ""),
+                            note=str(data.get("note") or ""),
                             error=str(data.get("error") or ""),
                             file_path=str(data.get("file_path") or ""),
                             created_at=_coerce_float(data.get("created_at"), time.time()),

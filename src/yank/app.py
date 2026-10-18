@@ -337,6 +337,7 @@ class YankApp(App):
                 error=item.error,
                 filesize=filesize,
                 checksum=checksum,
+                note=item.options.note if hasattr(item, "options") else "",
             )
             try:
                 self.history.add(entry)

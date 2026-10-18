@@ -98,6 +98,7 @@ class DownloadOptions:
     download_sections: str = ""
     meta_title: str = ""
     meta_artist: str = ""
+    note: str = ""
 
 
 @dataclass
