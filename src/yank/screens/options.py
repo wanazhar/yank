@@ -224,6 +224,12 @@ class OptionsScreen(Screen):
                 id="opt-write-subs",
             )
 
+            yield Checkbox(
+                "Normalize audio (loudnorm)",
+                value=False,
+                id="opt-normalize",
+            )
+
         yield Label("", id="opt-error")
         with Horizontal(id="opt-actions"):
             yield Button("Download", variant="primary", id="btn-download")
@@ -296,6 +302,12 @@ class OptionsScreen(Screen):
         except Exception:
             _logger.debug("Failed to read write-subs checkbox", exc_info=True)
 
+        normalize_audio = False
+        try:
+            normalize_audio = self.query_one("#opt-normalize", Checkbox).value
+        except Exception:
+            _logger.debug("Failed to read normalize checkbox", exc_info=True)
+
         audio_format = cfg.audio_format
         try:
             af = self.query_one("#opt-aformat", Select).value
@@ -339,6 +351,7 @@ class OptionsScreen(Screen):
             proxy=proxy_val,
             playlist_items=playlist_items_val,
             sponsorblock_remove=sponsorblock_val,
+            audio_normalize=normalize_audio or cfg.audio_normalize,
         )
 
     def _make_item(self, opts: DownloadOptions) -> DownloadItem:
@@ -429,6 +442,7 @@ class OptionsScreen(Screen):
                     proxy=opts.proxy,
                     playlist_items=opts.playlist_items,
                     sponsorblock_remove=opts.sponsorblock_remove,
+                    audio_normalize=opts.audio_normalize,
                 )
                 item = DownloadItem.create(
                     url=url,

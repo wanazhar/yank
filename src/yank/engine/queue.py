@@ -54,6 +54,7 @@ class QueueItem:
     rate_limit: str = ""
     playlist_items: str = ""
     sponsorblock_remove: str = ""
+    audio_normalize: bool = False
     error: str = ""
     file_path: str = ""
     created_at: float = field(default_factory=time.time)
@@ -77,6 +78,7 @@ class QueueItem:
             rate_limit=self.rate_limit,
             playlist_items=self.playlist_items,
             sponsorblock_remove=self.sponsorblock_remove,
+            audio_normalize=self.audio_normalize,
         )
 
     @classmethod
@@ -106,6 +108,7 @@ class QueueItem:
             rate_limit=opts.rate_limit,
             playlist_items=opts.playlist_items,
             sponsorblock_remove=opts.sponsorblock_remove,
+            audio_normalize=opts.audio_normalize,
             error=item.error,
             file_path=item.file_path,
             created_at=item.created_at,
@@ -200,6 +203,7 @@ class QueueEngine:
                             rate_limit=str(data.get("rate_limit") or ""),
                             playlist_items=str(data.get("playlist_items") or ""),
                             sponsorblock_remove=str(data.get("sponsorblock_remove") or ""),
+                            audio_normalize=bool(data.get("audio_normalize", False)),
                             error=str(data.get("error") or ""),
                             file_path=str(data.get("file_path") or ""),
                             created_at=_coerce_float(data.get("created_at"), time.time()),

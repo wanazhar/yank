@@ -49,6 +49,7 @@ class AppConfig:
     download_archive: str = ""
     rate_limit: str = ""
     playlist_items: str = ""
+    audio_normalize: bool = False
     sponsorblock_remove: str = ""
     retry_count: int = 3
 

@@ -93,6 +93,7 @@ class DownloadOptions:
     rate_limit: str = ""
     playlist_items: str = ""
     sponsorblock_remove: str = ""
+    audio_normalize: bool = False
 
 
 @dataclass
@@ -417,6 +418,11 @@ class DownloadManager:
         sb = opts.sponsorblock_remove or getattr(self.config, "sponsorblock_remove", "") or ""
         if sb.strip():
             ydl_opts["sponsorblock_remove"] = [x.strip() for x in sb.split(",") if x.strip()]
+
+        # Audio normalization
+        normalize = opts.audio_normalize or getattr(self.config, "audio_normalize", False)
+        if normalize:
+            ydl_opts["postprocessor_args"] = {"ffmpeg": ["-af", "loudnorm"]}
 
         postprocessors: list[dict[str, Any]] = []
 

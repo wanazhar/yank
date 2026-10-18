@@ -148,6 +148,12 @@ class SettingsScreen(Screen):
             yield Label("Retry count (0-10)", classes="set-label")
             yield Input(value=str(cfg.retry_count), placeholder="3", id="set-retry-count")
 
+            yield Label("Profile name", classes="set-label")
+            yield Input(value="", placeholder="work", id="set-profile-name")
+            with Horizontal():
+                yield Button("Save profile", id="btn-save-profile")
+                yield Button("Load profile", id="btn-load-profile")
+
             yield Label("yt-dlp update check", classes="set-label")
             yield Select(
                 [
@@ -370,6 +376,51 @@ class SettingsScreen(Screen):
         from yank.app import LogViewerScreen
 
         self.app.push_screen(LogViewerScreen())
+
+    @on(Button.Pressed, "#btn-save-profile")
+    def on_save_profile(self) -> None:
+        from pathlib import Path
+
+        from yank.models.config import save_config
+
+        name = self.query_one("#set-profile-name", Input).value.strip()
+        if not name:
+            self.notify("Enter a profile name.", severity="warning")
+            return
+        # Save current form first
+        self._save()
+        profile_dir = Path.home() / ".config" / "yank" / "profiles"
+        profile_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            save_config(self._app.config, path=profile_dir / f"{name}.toml")
+            self.notify(f"Profile '{name}' saved.", severity="information")
+        except OSError as exc:
+            self.notify(f"Save profile failed: {exc}", severity="error")
+
+    @on(Button.Pressed, "#btn-load-profile")
+    def on_load_profile(self) -> None:
+        from pathlib import Path
+
+        from yank.models.config import load_config
+
+        name = self.query_one("#set-profile-name", Input).value.strip()
+        if not name:
+            self.notify("Enter a profile name.", severity="warning")
+            return
+        profile_path = Path.home() / ".config" / "yank" / "profiles" / f"{name}.toml"
+        if not profile_path.exists():
+            self.notify(f"Profile '{name}' not found.", severity="error")
+            return
+        cfg = load_config(path=profile_path)
+        self._app.config = cfg
+        self._app.manager.config = cfg
+        self._app.queue.config = cfg
+        self._app.ytdlp.config = cfg
+        if hasattr(self._app, "_apply_theme"):
+            self._app._apply_theme()
+        self._app.refresh_status_bar()
+        # Refresh form fields by re-pushing screen? Simpler: notify
+        self.notify(f"Profile '{name}' loaded. Reopen settings to see values.", severity="information")
 
     @on(Button.Pressed, "#btn-health")
     def on_health(self) -> None:
