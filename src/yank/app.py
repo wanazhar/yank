@@ -83,6 +83,7 @@ _PALETTE_COMMANDS = [
     ("Go home", "action_go_home_palette", "Return to URL input"),
     ("Toggle theme", "action_toggle_theme_palette", "Switch dark/light theme"),
     ("Check for updates", "action_check_updates_palette", "Check yt-dlp updates"),
+    ("Help", "action_help_palette", "Show keybindings"),
     ("Quit", "action_quit", "Exit yank"),
 ]
 
@@ -101,6 +102,57 @@ class YankCommandProvider(Provider):
             if (score := matcher.match(name)) > 0:
                 callback = getattr(self.app, method)
                 yield Hit(score, matcher.highlight(name), callback, help=help_text)
+
+
+class HelpScreen(ModalScreen[None]):
+    """Modal showing keybindings and help."""
+
+    CSS = """
+    HelpScreen { align: center middle; }
+    #help-dialog { width: 70; height: 80%; border: round #a855f7; background: #0a0a0f; padding: 1; }
+    #help-text { height: 1fr; }
+    """
+
+    HELP_TEXT = (
+        "yank — keybindings\\n\\n"
+        "Global:\\n"
+        "  Ctrl+Q / Ctrl+C  Quit (with confirmation)\\n"
+        "  Ctrl+P           Command palette\\n"
+        "  F2               Queue view\\n"
+        "  F3               History\\n"
+        "  F4               Settings\\n\\n"
+        "URL input:\\n"
+        "  Enter            Continue\\n"
+        "  Esc              Quit\\n\\n"
+        "Format selection:\\n"
+        "  ↑↓               Navigate\\n"
+        "  Space/Enter      Select format\\n"
+        "  Esc              Back\\n\\n"
+        "Queue:\\n"
+        "  u/d              Move up/down\\n"
+        "  Delete           Remove\\n"
+        "  s                Start all\\n"
+        "  p                Pause all\\n"
+        "  Esc              Back\\n\\n"
+        "History:\\n"
+        "  r                Re-download\\n"
+        "  y                Copy info\\n"
+        "  /                Search\\n"
+        "  Esc              Back\\n"
+    )
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="help-dialog"):
+            yield TextArea(self.HELP_TEXT, id="help-text", read_only=True)
+            yield Button("Close", id="btn-close")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(None)
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "escape":
+            self.dismiss(None)
+            event.stop()
 
 
 class LogViewerScreen(ModalScreen[None]):
@@ -418,6 +470,9 @@ class YankApp(App):
 
     def action_check_updates_palette(self) -> None:
         self._startup_ytdlp()
+
+    def action_help_palette(self) -> None:
+        self.push_screen(HelpScreen())
 
     def _apply_theme(self) -> None:
         if self.config.theme == "light":
