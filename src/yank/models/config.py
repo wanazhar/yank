@@ -60,6 +60,7 @@ class AppConfig:
     source_address: str = ""
     live_from_start: bool = False
     webhook_url: str = ""
+    history_retention_days: int = 0
     sleep_interval: float = 0.0
     sponsorblock_mark: str = ""
     retry_count: int = 3

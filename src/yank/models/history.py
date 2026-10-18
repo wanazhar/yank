@@ -140,6 +140,31 @@ class HistoryStore:
             self.entries = []
         self.save()
 
+    def prune_older_than(self, days: int) -> int:
+        """Remove entries older than *days*. Returns count removed."""
+        if days <= 0:
+            return 0
+        from datetime import UTC, datetime, timedelta
+
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+        removed = 0
+        with self._lock:
+            kept = []
+            for e in self.entries:
+                try:
+                    d = datetime.fromisoformat(e.date.replace("Z", "+00:00"))
+                except ValueError:
+                    kept.append(e)
+                    continue
+                if d >= cutoff:
+                    kept.append(e)
+                else:
+                    removed += 1
+            self.entries = kept
+        if removed:
+            self.save()
+        return removed
+
     def to_list(self) -> list[HistoryEntry]:
         with self._lock:
             return list(self.entries)

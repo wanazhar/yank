@@ -168,6 +168,10 @@ class YankApp(App):
         self.config = load_config()
         self.history = HistoryStore()
         self.history.load()
+        try:
+            self.history.prune_older_than(self.config.history_retention_days)
+        except Exception:
+            _logger.debug("History prune failed", exc_info=True)
 
         self.manager = DownloadManager(
             self.config,

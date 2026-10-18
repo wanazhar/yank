@@ -130,6 +130,7 @@ class HistoryScreen(Screen):
             yield Button("Re-download", variant="primary", id="btn-redownload")
             yield Button("Copy info", id="btn-copy")
             yield Button("Export CSV", id="btn-export")
+            yield Button("Stats", id="btn-stats")
             yield Button("Clear history", id="btn-clear", variant="error")
             yield Button("Back", id="btn-back")
         yield Footer()
@@ -390,6 +391,19 @@ class HistoryScreen(Screen):
         self._app.history.clear()
         self.refresh_table()
         self.notify("History cleared.", severity="information")
+
+    @on(Button.Pressed, "#btn-stats")
+    def on_stats(self) -> None:
+        entries = self._app.history.to_list()
+        total_size = sum(e.filesize for e in entries)
+        success = sum(1 for e in entries if e.status == "success")
+        failed = sum(1 for e in entries if e.status == "error")
+        cancelled = sum(1 for e in entries if e.status == "cancelled")
+        self.notify(
+            f"Entries: {len(entries)} · success {success} · failed {failed} · cancelled {cancelled} · size {total_size}",
+            severity="information",
+            timeout=10,
+        )
 
     @on(Button.Pressed, "#btn-export")
     def on_export(self) -> None:

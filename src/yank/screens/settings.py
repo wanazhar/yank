@@ -172,6 +172,9 @@ class SettingsScreen(Screen):
             yield Label("Webhook URL (POST on completion)", classes="set-label")
             yield Input(value=cfg.webhook_url, placeholder="https://example.com/hook", id="set-webhook")
 
+            yield Label("History retention days (0 = keep all)", classes="set-label")
+            yield Input(value=str(cfg.history_retention_days), placeholder="0", id="set-retention")
+
             yield Label("Profile name", classes="set-label")
             yield Input(value="", placeholder="work", id="set-profile-name")
             with Horizontal():
@@ -299,6 +302,10 @@ class SettingsScreen(Screen):
         try:
             cfg.webhook_url = self.query_one("#set-webhook", Input).value.strip()
         except Exception:
+            pass
+        try:
+            cfg.history_retention_days = int(self.query_one("#set-retention", Input).value.strip() or "0")
+        except ValueError:
             pass
 
         try:
