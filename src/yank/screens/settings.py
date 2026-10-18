@@ -231,6 +231,7 @@ class SettingsScreen(Screen):
             yield Button("Health check", id="btn-health")
             yield Button("Backup", id="btn-backup")
             yield Button("Restore", id="btn-restore")
+            yield Button("Diagnostics", id="btn-diagnostics")
             yield Button("Back", id="btn-back")
         yield Footer()
 
@@ -570,6 +571,24 @@ class SettingsScreen(Screen):
             self.notify("Restored from backup. Restart to apply.", severity="information")
         except OSError as exc:
             self.notify(f"Restore failed: {exc}", severity="error")
+
+    @on(Button.Pressed, "#btn-diagnostics")
+    def on_diagnostics(self) -> None:
+        import zipfile
+        from pathlib import Path
+
+        from yank.paths import CONFIG_PATH, HISTORY_PATH, LOG_PATH, QUEUE_PATH
+
+        out = Path(self._app.config.download_dir) / "yank_diagnostics.zip"
+        try:
+            out.parent.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
+                for src in (CONFIG_PATH, HISTORY_PATH, QUEUE_PATH, LOG_PATH):
+                    if src.exists():
+                        zf.write(src, arcname=src.name)
+            self.notify(f"Diagnostics saved to {out}", severity="information")
+        except OSError as exc:
+            self.notify(f"Diagnostics failed: {exc}", severity="error")
 
     @on(Button.Pressed, "#btn-health")
     def on_health(self) -> None:
