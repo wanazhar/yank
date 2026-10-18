@@ -445,6 +445,8 @@ class DownloadManager:
         if getattr(self.config, "geo_bypass", False):
             ydl_opts["geo_bypass"] = True
 
+        ydl_opts["continue_dl"] = getattr(self.config, "continue_dl", True)
+
         # Sleep between requests
         sleep = getattr(self.config, "sleep_interval", 0.0)
         if sleep and sleep > 0:

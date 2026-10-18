@@ -56,6 +56,7 @@ class AppConfig:
     concurrent_fragments: int = 4
     external_downloader: str = ""
     geo_bypass: bool = False
+    continue_dl: bool = True
     sleep_interval: float = 0.0
     sponsorblock_mark: str = ""
     retry_count: int = 3
