@@ -454,6 +454,9 @@ class DownloadManager:
         if getattr(self.config, "live_from_start", False):
             ydl_opts["live_from_start"] = True
 
+        if getattr(self.config, "prefer_free_formats", False):
+            ydl_opts["prefer_free_formats"] = True
+
         # Sleep between requests
         sleep = getattr(self.config, "sleep_interval", 0.0)
         if sleep and sleep > 0:
