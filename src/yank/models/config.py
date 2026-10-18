@@ -53,6 +53,8 @@ class AppConfig:
     sponsorblock_remove: str = ""
     split_chapters: bool = False
     download_sections: str = ""
+    concurrent_fragments: int = 4
+    external_downloader: str = ""
     retry_count: int = 3
 
     def ensure_valid(self) -> AppConfig:
@@ -69,6 +71,7 @@ class AppConfig:
         if self.theme not in ("dark", "light"):
             self.theme = "dark"
         self.retry_count = max(0, min(10, int(self.retry_count)))
+        self.concurrent_fragments = max(1, min(16, int(self.concurrent_fragments)))
         # Expand ~ in download dir
         self.download_dir = str(Path(self.download_dir).expanduser())
 

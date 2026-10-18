@@ -154,6 +154,12 @@ class SettingsScreen(Screen):
             yield Label("Audio normalize (default)", classes="set-label")
             yield Select([("Off", "false"), ("On", "true")], value="true" if cfg.audio_normalize else "false", id="set-normalize", allow_blank=False)
 
+            yield Label("Concurrent fragments (1-16)", classes="set-label")
+            yield Input(value=str(cfg.concurrent_fragments), placeholder="4", id="set-fragments")
+
+            yield Label("External downloader (aria2c, etc.)", classes="set-label")
+            yield Input(value=cfg.external_downloader, placeholder="aria2c", id="set-ext-dl")
+
             yield Label("Profile name", classes="set-label")
             yield Input(value="", placeholder="work", id="set-profile-name")
             with Horizontal():
@@ -256,6 +262,14 @@ class SettingsScreen(Screen):
             pass
         try:
             cfg.audio_normalize = self.query_one("#set-normalize", Select).value == "true"
+        except Exception:
+            pass
+        try:
+            cfg.concurrent_fragments = int(self.query_one("#set-fragments", Input).value.strip() or "4")
+        except ValueError:
+            pass
+        try:
+            cfg.external_downloader = self.query_one("#set-ext-dl", Input).value.strip()
         except Exception:
             pass
 

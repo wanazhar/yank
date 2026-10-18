@@ -431,6 +431,16 @@ class DownloadManager:
         if split:
             ydl_opts["split_chapters"] = True
 
+        # Concurrent fragments
+        cf = getattr(self.config, "concurrent_fragments", 1)
+        if cf and cf > 1:
+            ydl_opts["concurrent_fragment_downloads"] = cf
+
+        # External downloader
+        ext = getattr(self.config, "external_downloader", "") or ""
+        if ext.strip():
+            ydl_opts["external_downloader"] = ext.strip()
+
         postprocessors: list[dict[str, Any]] = []
 
         if opts.extract_audio:
