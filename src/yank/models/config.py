@@ -65,6 +65,12 @@ class AppConfig:
     age_limit: int = 0
     webhook_url: str = ""
     ytdlp_channel: str = "stable"
+    email_notify: bool = False
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    email_to: str = ""
     history_retention_days: int = 0
     language: str = "en"
     prefer_free_formats: bool = False

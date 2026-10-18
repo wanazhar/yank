@@ -409,6 +409,9 @@ class YankApp(App):
             if webhook.strip():
                 self._send_webhook(webhook.strip(), item, hist_status)
 
+            if getattr(self.config, "email_notify", False):
+                self._send_email(item, hist_status)
+
         def _notify() -> None:
             self.refresh_status_bar()
             if item.status == DownloadStatus.COMPLETED:
@@ -518,6 +521,30 @@ class YankApp(App):
             urllib.request.urlopen(req, timeout=10).close()
         except Exception:
             _logger.debug("Webhook delivery failed", exc_info=True)
+
+    def _send_email(self, item: DownloadItem, status: str) -> None:
+        import smtplib
+        from email.message import EmailMessage
+
+        cfg = self.config
+        host = getattr(cfg, "smtp_host", "") or ""
+        if not host:
+            return
+        try:
+            msg = EmailMessage()
+            msg["Subject"] = f"yank download {status}: {item.title}"
+            msg["From"] = getattr(cfg, "smtp_user", "") or "yank@localhost"
+            msg["To"] = getattr(cfg, "email_to", "") or getattr(cfg, "smtp_user", "")
+            msg.set_content(f"Title: {item.title}\nURL: {item.url}\nStatus: {status}\nFile: {item.file_path}\nError: {item.error}")
+            with smtplib.SMTP(host, getattr(cfg, "smtp_port", 587), timeout=15) as s:
+                s.starttls()
+                user = getattr(cfg, "smtp_user", "") or ""
+                pwd = getattr(cfg, "smtp_password", "") or ""
+                if user:
+                    s.login(user, pwd)
+                s.send_message(msg)
+        except Exception:
+            _logger.debug("Email delivery failed", exc_info=True)
 
     async def action_quit(self) -> None:
         confirmed = await self.push_screen_wait(QuitConfirmScreen())
