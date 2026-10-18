@@ -109,32 +109,38 @@ class YankApp(App):
     @work(thread=True)
     def _startup_ytdlp(self) -> None:
         """Install yt-dlp if missing; check for updates if due."""
-        if not self.ytdlp.is_installed():
-            self.call_from_thread(self._set_notice, "Installing yt-dlp…")
-            ok = self.ytdlp.ensure_installed()
-            if ok:
-                self.call_from_thread(
-                    self._set_notice, f"yt-dlp {self.ytdlp.current_version()} installed."
-                )
-            else:
-                self.call_from_thread(
-                    self._set_notice, "yt-dlp missing — open Settings to install."
-                )
-            self.call_from_thread(self.refresh_status_bar)
-            return
+        try:
+            if not self.ytdlp.is_installed():
+                self.call_from_thread(self._set_notice, "Installing yt-dlp…")
+                ok = self.ytdlp.ensure_installed()
+                if ok:
+                    self.call_from_thread(
+                        self._set_notice, f"yt-dlp {self.ytdlp.current_version()} installed."
+                    )
+                else:
+                    self.call_from_thread(
+                        self._set_notice, "yt-dlp missing — open Settings to install."
+                    )
+                self.call_from_thread(self.refresh_status_bar)
+                return
 
-        if self.ytdlp.should_check_on_startup():
-            result = self.ytdlp.check_for_updates(force=True)
-            if result.update_available:
-                notice = f"Update available: yt-dlp {result.latest_version}"
-                self.call_from_thread(self._set_notice, notice)
-                self.call_from_thread(
-                    self.notify,
-                    f"yt-dlp update available: {result.current_version} → {result.latest_version}",
-                    severity="warning",
-                    timeout=8,
-                )
-            self.call_from_thread(self.refresh_status_bar)
+            if self.ytdlp.should_check_on_startup():
+                result = self.ytdlp.check_for_updates(force=True)
+                if result.update_available:
+                    notice = f"Update available: yt-dlp {result.latest_version}"
+                    self.call_from_thread(self._set_notice, notice)
+                    self.call_from_thread(
+                        self.notify,
+                        f"yt-dlp update available: {result.current_version} → {result.latest_version}",
+                        severity="warning",
+                        timeout=8,
+                    )
+                self.call_from_thread(self.refresh_status_bar)
+        except Exception:
+            _logger.debug("Startup yt-dlp task failed", exc_info=True)
+            self.call_from_thread(
+                self._set_notice, "yt-dlp startup check failed — open Settings."
+            )
 
     def _set_notice(self, text: str) -> None:
         self._update_notice = text
