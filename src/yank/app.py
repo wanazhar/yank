@@ -255,6 +255,15 @@ class YankApp(App):
     def on_mount(self) -> None:
         self._startup_ytdlp()
         self.queue.load()
+        try:
+            if self.queue.size() > 0:
+                self.call_from_thread(
+                    self.notify,
+                    f"Restored {self.queue.size()} queued item(s).",
+                    severity="information",
+                )
+        except Exception:
+            pass
         self._apply_theme()
         try:
             from yank.plugins import load_plugins
