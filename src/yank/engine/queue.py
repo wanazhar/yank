@@ -57,6 +57,8 @@ class QueueItem:
     audio_normalize: bool = False
     split_chapters: bool = False
     download_sections: str = ""
+    meta_title: str = ""
+    meta_artist: str = ""
     error: str = ""
     file_path: str = ""
     created_at: float = field(default_factory=time.time)
@@ -83,6 +85,8 @@ class QueueItem:
             audio_normalize=self.audio_normalize,
             split_chapters=self.split_chapters,
             download_sections=self.download_sections,
+            meta_title=self.meta_title,
+            meta_artist=self.meta_artist,
         )
 
     @classmethod
@@ -115,6 +119,8 @@ class QueueItem:
             audio_normalize=opts.audio_normalize,
             split_chapters=opts.split_chapters,
             download_sections=opts.download_sections,
+            meta_title=opts.meta_title,
+            meta_artist=opts.meta_artist,
             error=item.error,
             file_path=item.file_path,
             created_at=item.created_at,
@@ -212,6 +218,8 @@ class QueueEngine:
                             audio_normalize=bool(data.get("audio_normalize", False)),
                             split_chapters=bool(data.get("split_chapters", False)),
                             download_sections=str(data.get("download_sections") or ""),
+                            meta_title=str(data.get("meta_title") or ""),
+                            meta_artist=str(data.get("meta_artist") or ""),
                             error=str(data.get("error") or ""),
                             file_path=str(data.get("file_path") or ""),
                             created_at=_coerce_float(data.get("created_at"), time.time()),

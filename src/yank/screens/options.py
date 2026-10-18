@@ -204,6 +204,12 @@ class OptionsScreen(Screen):
                 id="opt-proxy",
             )
 
+            yield Label("Metadata title override", classes="opt-label")
+            yield Input(value="", placeholder="", id="opt-meta-title")
+
+            yield Label("Metadata artist override", classes="opt-label")
+            yield Input(value="", placeholder="", id="opt-meta-artist")
+
             yield Label("Playlist items (e.g. 1-5,7)", classes="opt-label")
             yield Input(
                 value="",
@@ -341,6 +347,14 @@ class OptionsScreen(Screen):
         except Exception:
             proxy_val = ""
         try:
+            meta_title_val = self.query_one("#opt-meta-title", Input).value.strip()
+        except Exception:
+            meta_title_val = ""
+        try:
+            meta_artist_val = self.query_one("#opt-meta-artist", Input).value.strip()
+        except Exception:
+            meta_artist_val = ""
+        try:
             playlist_items_val = self.query_one("#opt-playlist-items", Input).value.strip()
         except Exception:
             playlist_items_val = ""
@@ -377,6 +391,8 @@ class OptionsScreen(Screen):
             audio_normalize=normalize_audio or cfg.audio_normalize,
             split_chapters=split_chapters or cfg.split_chapters,
             download_sections=sections_val,
+            meta_title=meta_title_val,
+            meta_artist=meta_artist_val,
         )
 
     def _make_item(self, opts: DownloadOptions) -> DownloadItem:
@@ -470,6 +486,8 @@ class OptionsScreen(Screen):
                     audio_normalize=opts.audio_normalize,
                     split_chapters=opts.split_chapters,
                     download_sections=opts.download_sections,
+                    meta_title=opts.meta_title,
+                    meta_artist=opts.meta_artist,
                 )
                 item = DownloadItem.create(
                     url=url,

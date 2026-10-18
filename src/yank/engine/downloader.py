@@ -96,6 +96,8 @@ class DownloadOptions:
     audio_normalize: bool = False
     split_chapters: bool = False
     download_sections: str = ""
+    meta_title: str = ""
+    meta_artist: str = ""
 
 
 @dataclass
@@ -425,6 +427,18 @@ class DownloadManager:
         normalize = opts.audio_normalize or getattr(self.config, "audio_normalize", False)
         if normalize:
             ydl_opts["postprocessor_args"] = {"ffmpeg": ["-af", "loudnorm"]}
+
+        # Metadata overrides
+        meta_args = []
+        if opts.meta_title.strip():
+            meta_args += ["-metadata", f"title={opts.meta_title.strip()}"]
+        if opts.meta_artist.strip():
+            meta_args += ["-metadata", f"artist={opts.meta_artist.strip()}"]
+        if meta_args:
+            existing = ydl_opts.get("postprocessor_args", {})
+            ffmpeg_args = list(existing.get("ffmpeg", [])) if isinstance(existing, dict) else []
+            ffmpeg_args = ffmpeg_args + meta_args
+            ydl_opts["postprocessor_args"] = {"ffmpeg": ffmpeg_args}
 
         # Split by chapters
         split = opts.split_chapters or getattr(self.config, "split_chapters", False)

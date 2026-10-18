@@ -311,6 +311,23 @@ class YankApp(App):
             elif item.progress.downloaded_bytes > 0:
                 filesize = item.progress.downloaded_bytes
 
+            # Calculate checksum if file exists
+            checksum = ""
+            if item.file_path:
+                import hashlib
+                from pathlib import Path
+
+                p = Path(item.file_path)
+                if p.is_file():
+                    try:
+                        h = hashlib.sha256()
+                        with open(p, "rb") as f:
+                            for chunk in iter(lambda: f.read(65536), b""):
+                                h.update(chunk)
+                        checksum = h.hexdigest()
+                    except OSError:
+                        pass
+
             entry = HistoryEntry.create(
                 title=item.title,
                 url=item.url,
@@ -319,6 +336,7 @@ class YankApp(App):
                 status=hist_status,
                 error=item.error,
                 filesize=filesize,
+                checksum=checksum,
             )
             try:
                 self.history.add(entry)
