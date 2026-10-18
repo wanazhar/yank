@@ -213,6 +213,9 @@ class OptionsScreen(Screen):
             yield Label("Download note (saved to history)", classes="opt-label")
             yield Input(value="", placeholder="", id="opt-note")
 
+            yield Label("Tag (for queue grouping)", classes="opt-label")
+            yield Input(value="", placeholder="music", id="opt-tag")
+
             yield Label("Playlist items (e.g. 1-5,7)", classes="opt-label")
             yield Input(
                 value="",
@@ -362,6 +365,10 @@ class OptionsScreen(Screen):
         except Exception:
             note_val = ""
         try:
+            tag_val = self.query_one("#opt-tag", Input).value.strip()
+        except Exception:
+            tag_val = ""
+        try:
             playlist_items_val = self.query_one("#opt-playlist-items", Input).value.strip()
         except Exception:
             playlist_items_val = ""
@@ -401,6 +408,7 @@ class OptionsScreen(Screen):
             meta_title=meta_title_val,
             meta_artist=meta_artist_val,
             note=note_val,
+            tag=tag_val,
         )
 
     def _make_item(self, opts: DownloadOptions) -> DownloadItem:
@@ -497,6 +505,7 @@ class OptionsScreen(Screen):
                     meta_title=opts.meta_title,
                     meta_artist=opts.meta_artist,
                     note=opts.note,
+                    tag=opts.tag,
                 )
                 item = DownloadItem.create(
                     url=url,

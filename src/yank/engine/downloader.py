@@ -99,6 +99,7 @@ class DownloadOptions:
     meta_title: str = ""
     meta_artist: str = ""
     note: str = ""
+    tag: str = ""
 
 
 @dataclass

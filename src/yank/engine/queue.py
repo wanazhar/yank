@@ -60,6 +60,7 @@ class QueueItem:
     meta_title: str = ""
     meta_artist: str = ""
     note: str = ""
+    tag: str = ""
     error: str = ""
     file_path: str = ""
     created_at: float = field(default_factory=time.time)
@@ -89,6 +90,7 @@ class QueueItem:
             meta_title=self.meta_title,
             meta_artist=self.meta_artist,
             note=self.note,
+            tag=self.tag,
         )
 
     @classmethod
@@ -124,6 +126,7 @@ class QueueItem:
             meta_title=opts.meta_title,
             meta_artist=opts.meta_artist,
             note=opts.note,
+            tag=opts.tag,
             error=item.error,
             file_path=item.file_path,
             created_at=item.created_at,
@@ -224,6 +227,7 @@ class QueueEngine:
                             meta_title=str(data.get("meta_title") or ""),
                             meta_artist=str(data.get("meta_artist") or ""),
                             note=str(data.get("note") or ""),
+                            tag=str(data.get("tag") or ""),
                             error=str(data.get("error") or ""),
                             file_path=str(data.get("file_path") or ""),
                             created_at=_coerce_float(data.get("created_at"), time.time()),
