@@ -89,13 +89,13 @@ class HistoryStore:
                     try:
                         self.entries.append(
                             HistoryEntry(
-                                date=str(item.get("date", "")),
-                                title=str(item.get("title", "Unknown")),
-                                url=str(item.get("url", "")),
-                                format_id=str(item.get("format_id", "")),
-                                file_path=str(item.get("file_path", "")),
+                                date=str(item.get("date") or ""),
+                                title=str(item.get("title") or "Unknown"),
+                                url=str(item.get("url") or ""),
+                                format_id=str(item.get("format_id") or ""),
+                                file_path=str(item.get("file_path") or ""),
                                 status=_coerce_history_status(item.get("status")),
-                                error=str(item.get("error", "")),
+                                error=str(item.get("error") or ""),
                                 filesize=_coerce_int(item.get("filesize"), 0),
                             )
                         )

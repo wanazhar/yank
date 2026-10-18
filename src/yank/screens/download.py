@@ -103,7 +103,12 @@ class DownloadScreen(Screen):
     async def on_mount(self) -> None:
         await self.rebuild_list()
         # Poll progress ~4 Hz
-        self._timer = self.set_interval(DOWNLOAD_POLL_INTERVAL, self.refresh_progress)
+        self._timer = self.set_interval(DOWNLOAD_POLL_INTERVAL, self._tick_refresh)
+
+    def _tick_refresh(self) -> None:
+        """Refresh progress only when this screen is visible."""
+        if self.app.screen is self:
+            self.refresh_progress()
 
     async def on_screen_resume(self) -> None:
         await self.rebuild_list()
