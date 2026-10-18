@@ -130,6 +130,7 @@ class HistoryScreen(Screen):
             yield Button("Re-download", variant="primary", id="btn-redownload")
             yield Button("Copy info", id="btn-copy")
             yield Button("Export CSV", id="btn-export")
+            yield Button("Import CSV", id="btn-import")
             yield Button("Stats", id="btn-stats")
             yield Button("Clear history", id="btn-clear", variant="error")
             yield Button("Back", id="btn-back")
@@ -404,6 +405,37 @@ class HistoryScreen(Screen):
             severity="information",
             timeout=10,
         )
+
+    @on(Button.Pressed, "#btn-import")
+    def on_import(self) -> None:
+        import csv
+        from pathlib import Path
+
+        src = Path(self._app.config.download_dir) / "yank_history.csv"
+        if not src.exists():
+            self.notify("No yank_history.csv in download dir.", severity="warning")
+            return
+        count = 0
+        try:
+            with open(src, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    entry = HistoryEntry.create(
+                        title=row.get("Title", "Unknown"),
+                        url=row.get("URL", ""),
+                        format_id=row.get("Format", ""),
+                        file_path=row.get("File", ""),
+                        status=row.get("Status", "error"),  # type: ignore[arg-type]
+                        error=row.get("Error", ""),
+                        filesize=int(row.get("Size", "0") or 0),
+                        checksum="",
+                    )
+                    self._app.history.add(entry)
+                    count += 1
+            self.refresh_table()
+            self.notify(f"Imported {count} entries.", severity="information")
+        except Exception as exc:
+            self.notify(f"Import failed: {exc}", severity="error")
 
     @on(Button.Pressed, "#btn-export")
     def on_export(self) -> None:
