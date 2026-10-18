@@ -166,6 +166,9 @@ class SettingsScreen(Screen):
             yield Label("External downloader (aria2c, etc.)", classes="set-label")
             yield Input(value=cfg.external_downloader, placeholder="aria2c", id="set-ext-dl")
 
+            yield Label("yt-dlp channel", classes="set-label")
+            yield Select([("Stable", "stable"), ("Nightly", "nightly")], value=cfg.ytdlp_channel, id="set-channel", allow_blank=False)
+
             yield Label("Geo bypass", classes="set-label")
             yield Select([("Off", "false"), ("On", "true")], value="true" if cfg.geo_bypass else "false", id="set-geo", allow_blank=False)
 
@@ -306,6 +309,10 @@ class SettingsScreen(Screen):
             pass
         try:
             cfg.external_downloader = self.query_one("#set-ext-dl", Input).value.strip()
+        except Exception:
+            pass
+        try:
+            cfg.ytdlp_channel = str(self.query_one("#set-channel", Select).value)
         except Exception:
             pass
         try:

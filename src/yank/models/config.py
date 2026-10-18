@@ -64,6 +64,7 @@ class AppConfig:
     high_contrast: bool = False
     age_limit: int = 0
     webhook_url: str = ""
+    ytdlp_channel: str = "stable"
     history_retention_days: int = 0
     language: str = "en"
     prefer_free_formats: bool = False
@@ -85,6 +86,8 @@ class AppConfig:
         if self.theme not in ("dark", "light"):
             self.theme = "dark"
         self.retry_count = max(0, min(10, int(self.retry_count)))
+        if self.ytdlp_channel not in ("stable", "nightly"):
+            self.ytdlp_channel = "stable"
         self.concurrent_fragments = max(1, min(16, int(self.concurrent_fragments)))
         # Expand ~ in download dir
         self.download_dir = str(Path(self.download_dir).expanduser())
