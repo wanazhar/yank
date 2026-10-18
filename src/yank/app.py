@@ -7,6 +7,10 @@ from typing import ClassVar, Literal
 from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.containers import Horizontal, Vertical
+from textual.events import Key
+from textual.screen import ModalScreen
+from textual.widgets import Button, Label
 
 from yank.engine.downloader import DownloadItem, DownloadManager, DownloadStatus
 from yank.engine.queue import QueueEngine
@@ -21,6 +25,52 @@ from yank.styles import APP_CSS
 from yank.widgets.status_bar import StatusBar
 
 _logger = get_logger(__name__)
+
+
+class QuitConfirmScreen(ModalScreen[bool]):
+    """Modal confirmation dialog shown before exiting yank."""
+
+    CSS = """
+    QuitConfirmScreen {
+        align: center middle;
+    }
+    #quit-dialog {
+        width: 40;
+        height: auto;
+        padding: 1 2;
+        border: round #a855f7;
+        background: #0a0a0f;
+    }
+    #quit-dialog Label {
+        width: 100%;
+        text-align: center;
+        margin-bottom: 1;
+        color: #e2e8f0;
+    }
+    #quit-dialog Horizontal {
+        align: center middle;
+        height: auto;
+    }
+    #quit-dialog Button {
+        margin: 0 1;
+        width: 12;
+    }
+    """
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="quit-dialog"):
+            yield Label("Quit yank?")
+            with Horizontal():
+                yield Button("Yes", variant="error", id="btn-yes")
+                yield Button("No", variant="primary", id="btn-no")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(event.button.id == "btn-yes")
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "escape":
+            self.dismiss(False)
+            event.stop()
 
 
 class YankApp(App):
@@ -230,6 +280,9 @@ class YankApp(App):
             )
 
     async def action_quit(self) -> None:
+        confirmed = await self.push_screen_wait(QuitConfirmScreen())
+        if not confirmed:
+            return
         try:
             self.manager.cancel_all()
         except Exception:
