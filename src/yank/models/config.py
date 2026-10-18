@@ -57,6 +57,8 @@ class AppConfig:
     external_downloader: str = ""
     geo_bypass: bool = False
     continue_dl: bool = True
+    source_address: str = ""
+    live_from_start: bool = False
     sleep_interval: float = 0.0
     sponsorblock_mark: str = ""
     retry_count: int = 3

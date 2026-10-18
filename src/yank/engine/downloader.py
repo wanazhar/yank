@@ -447,6 +447,13 @@ class DownloadManager:
 
         ydl_opts["continue_dl"] = getattr(self.config, "continue_dl", True)
 
+        sa = getattr(self.config, "source_address", "") or ""
+        if sa.strip():
+            ydl_opts["source_address"] = sa.strip()
+
+        if getattr(self.config, "live_from_start", False):
+            ydl_opts["live_from_start"] = True
+
         # Sleep between requests
         sleep = getattr(self.config, "sleep_interval", 0.0)
         if sleep and sleep > 0:
