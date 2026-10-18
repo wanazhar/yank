@@ -73,6 +73,7 @@ class AppConfig:
     email_to: str = ""
     history_retention_days: int = 0
     language: str = "en"
+    seen_welcome: bool = False
     prefer_free_formats: bool = False
     sleep_interval: float = 0.0
     sponsorblock_mark: str = ""

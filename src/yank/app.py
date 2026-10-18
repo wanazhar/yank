@@ -104,6 +104,31 @@ class YankCommandProvider(Provider):
                 yield Hit(score, matcher.highlight(name), callback, help=help_text)
 
 
+class WelcomeScreen(ModalScreen[None]):
+    """First-run welcome modal."""
+
+    CSS = """
+    WelcomeScreen { align: center middle; }
+    #welcome-dialog { width: 60; height: auto; border: round #a855f7; background: #0a0a0f; padding: 2; }
+    #welcome-dialog Label { width: 100%; text-align: center; margin-bottom: 1; color: #e2e8f0; }
+    """
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="welcome-dialog"):
+            yield Label("Welcome to yank!")
+            yield Label("Paste a URL, pick a format, download.")
+            yield Label("Press ? or Ctrl+P for help.")
+            yield Button("Get started", variant="primary", id="btn-ok")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(None)
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "escape":
+            self.dismiss(None)
+            event.stop()
+
+
 class HelpScreen(ModalScreen[None]):
     """Modal showing keybindings and help."""
 
@@ -255,6 +280,13 @@ class YankApp(App):
     def on_mount(self) -> None:
         self._startup_ytdlp()
         self.queue.load()
+        if not getattr(self.config, "seen_welcome", False):
+            self.config.seen_welcome = True
+            try:
+                save_config(self.config)
+            except OSError:
+                pass
+            self.push_screen(WelcomeScreen())
         try:
             if self.queue.size() > 0:
                 self.call_from_thread(
