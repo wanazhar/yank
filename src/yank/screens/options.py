@@ -218,6 +218,13 @@ class OptionsScreen(Screen):
                 id="opt-sponsorblock",
             )
 
+            yield Label("Download sections (e.g. *00:01:00-00:02:00)", classes="opt-label")
+            yield Input(
+                value="",
+                placeholder="*00:01:00-00:02:00",
+                id="opt-sections",
+            )
+
             yield Checkbox(
                 "Save subtitles as separate file",
                 value=False,
@@ -341,6 +348,10 @@ class OptionsScreen(Screen):
             sponsorblock_val = self.query_one("#opt-sponsorblock", Input).value.strip()
         except Exception:
             sponsorblock_val = ""
+        try:
+            sections_val = self.query_one("#opt-sections", Input).value.strip()
+        except Exception:
+            sections_val = ""
         selector = format_selector_for(
             self.selected_format,
             audio_only=audio_only,
@@ -365,6 +376,7 @@ class OptionsScreen(Screen):
             sponsorblock_remove=sponsorblock_val,
             audio_normalize=normalize_audio or cfg.audio_normalize,
             split_chapters=split_chapters or cfg.split_chapters,
+            download_sections=sections_val,
         )
 
     def _make_item(self, opts: DownloadOptions) -> DownloadItem:
@@ -457,6 +469,7 @@ class OptionsScreen(Screen):
                     sponsorblock_remove=opts.sponsorblock_remove,
                     audio_normalize=opts.audio_normalize,
                     split_chapters=opts.split_chapters,
+                    download_sections=opts.download_sections,
                 )
                 item = DownloadItem.create(
                     url=url,

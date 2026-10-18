@@ -467,6 +467,16 @@ class DownloadManager:
         if sb_mark.strip():
             ydl_opts["sponsorblock_mark"] = [x.strip() for x in sb_mark.split(",") if x.strip()]
 
+        # Download sections
+        sections = opts.download_sections or getattr(self.config, "download_sections", "") or ""
+        if sections.strip():
+            try:
+                from yt_dlp.utils import download_range_func
+
+                ydl_opts["download_ranges"] = download_range_func(None, sections.strip())
+            except Exception:
+                _logger.debug("Failed to set download_ranges", exc_info=True)
+
         postprocessors: list[dict[str, Any]] = []
 
         if opts.extract_audio:
