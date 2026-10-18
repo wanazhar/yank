@@ -148,6 +148,12 @@ class SettingsScreen(Screen):
             yield Label("Retry count (0-10)", classes="set-label")
             yield Input(value=str(cfg.retry_count), placeholder="3", id="set-retry-count")
 
+            yield Label("Split by chapters (default)", classes="set-label")
+            yield Select([("Off", "false"), ("On", "true")], value="true" if cfg.split_chapters else "false", id="set-split", allow_blank=False)
+
+            yield Label("Audio normalize (default)", classes="set-label")
+            yield Select([("Off", "false"), ("On", "true")], value="true" if cfg.audio_normalize else "false", id="set-normalize", allow_blank=False)
+
             yield Label("Profile name", classes="set-label")
             yield Input(value="", placeholder="work", id="set-profile-name")
             with Horizontal():
@@ -243,6 +249,14 @@ class SettingsScreen(Screen):
         try:
             cfg.retry_count = int(self.query_one("#set-retry-count", Input).value.strip() or "3")
         except ValueError:
+            pass
+        try:
+            cfg.split_chapters = self.query_one("#set-split", Select).value == "true"
+        except Exception:
+            pass
+        try:
+            cfg.audio_normalize = self.query_one("#set-normalize", Select).value == "true"
+        except Exception:
             pass
 
         try:

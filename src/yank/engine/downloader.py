@@ -94,6 +94,8 @@ class DownloadOptions:
     playlist_items: str = ""
     sponsorblock_remove: str = ""
     audio_normalize: bool = False
+    split_chapters: bool = False
+    download_sections: str = ""
 
 
 @dataclass
@@ -423,6 +425,11 @@ class DownloadManager:
         normalize = opts.audio_normalize or getattr(self.config, "audio_normalize", False)
         if normalize:
             ydl_opts["postprocessor_args"] = {"ffmpeg": ["-af", "loudnorm"]}
+
+        # Split by chapters
+        split = opts.split_chapters or getattr(self.config, "split_chapters", False)
+        if split:
+            ydl_opts["split_chapters"] = True
 
         postprocessors: list[dict[str, Any]] = []
 

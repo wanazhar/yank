@@ -51,6 +51,8 @@ class AppConfig:
     playlist_items: str = ""
     audio_normalize: bool = False
     sponsorblock_remove: str = ""
+    split_chapters: bool = False
+    download_sections: str = ""
     retry_count: int = 3
 
     def ensure_valid(self) -> AppConfig:

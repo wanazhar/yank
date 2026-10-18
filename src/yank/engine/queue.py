@@ -55,6 +55,7 @@ class QueueItem:
     playlist_items: str = ""
     sponsorblock_remove: str = ""
     audio_normalize: bool = False
+    split_chapters: bool = False
     error: str = ""
     file_path: str = ""
     created_at: float = field(default_factory=time.time)
@@ -79,6 +80,7 @@ class QueueItem:
             playlist_items=self.playlist_items,
             sponsorblock_remove=self.sponsorblock_remove,
             audio_normalize=self.audio_normalize,
+            split_chapters=self.split_chapters,
         )
 
     @classmethod
@@ -109,6 +111,7 @@ class QueueItem:
             playlist_items=opts.playlist_items,
             sponsorblock_remove=opts.sponsorblock_remove,
             audio_normalize=opts.audio_normalize,
+            split_chapters=opts.split_chapters,
             error=item.error,
             file_path=item.file_path,
             created_at=item.created_at,
@@ -204,6 +207,7 @@ class QueueEngine:
                             playlist_items=str(data.get("playlist_items") or ""),
                             sponsorblock_remove=str(data.get("sponsorblock_remove") or ""),
                             audio_normalize=bool(data.get("audio_normalize", False)),
+                            split_chapters=bool(data.get("split_chapters", False)),
                             error=str(data.get("error") or ""),
                             file_path=str(data.get("file_path") or ""),
                             created_at=_coerce_float(data.get("created_at"), time.time()),

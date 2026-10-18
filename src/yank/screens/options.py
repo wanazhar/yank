@@ -230,6 +230,12 @@ class OptionsScreen(Screen):
                 id="opt-normalize",
             )
 
+            yield Checkbox(
+                "Split by chapters",
+                value=False,
+                id="opt-split",
+            )
+
         yield Label("", id="opt-error")
         with Horizontal(id="opt-actions"):
             yield Button("Download", variant="primary", id="btn-download")
@@ -308,6 +314,12 @@ class OptionsScreen(Screen):
         except Exception:
             _logger.debug("Failed to read normalize checkbox", exc_info=True)
 
+        split_chapters = False
+        try:
+            split_chapters = self.query_one("#opt-split", Checkbox).value
+        except Exception:
+            _logger.debug("Failed to read split checkbox", exc_info=True)
+
         audio_format = cfg.audio_format
         try:
             af = self.query_one("#opt-aformat", Select).value
@@ -352,6 +364,7 @@ class OptionsScreen(Screen):
             playlist_items=playlist_items_val,
             sponsorblock_remove=sponsorblock_val,
             audio_normalize=normalize_audio or cfg.audio_normalize,
+            split_chapters=split_chapters or cfg.split_chapters,
         )
 
     def _make_item(self, opts: DownloadOptions) -> DownloadItem:
@@ -443,6 +456,7 @@ class OptionsScreen(Screen):
                     playlist_items=opts.playlist_items,
                     sponsorblock_remove=opts.sponsorblock_remove,
                     audio_normalize=opts.audio_normalize,
+                    split_chapters=opts.split_chapters,
                 )
                 item = DownloadItem.create(
                     url=url,
