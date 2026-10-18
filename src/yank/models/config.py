@@ -55,6 +55,9 @@ class AppConfig:
     download_sections: str = ""
     concurrent_fragments: int = 4
     external_downloader: str = ""
+    geo_bypass: bool = False
+    sleep_interval: float = 0.0
+    sponsorblock_mark: str = ""
     retry_count: int = 3
 
     def ensure_valid(self) -> AppConfig:

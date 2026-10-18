@@ -441,6 +441,20 @@ class DownloadManager:
         if ext.strip():
             ydl_opts["external_downloader"] = ext.strip()
 
+        # Geo bypass
+        if getattr(self.config, "geo_bypass", False):
+            ydl_opts["geo_bypass"] = True
+
+        # Sleep between requests
+        sleep = getattr(self.config, "sleep_interval", 0.0)
+        if sleep and sleep > 0:
+            ydl_opts["sleep_interval"] = sleep
+
+        # SponsorBlock mark
+        sb_mark = getattr(self.config, "sponsorblock_mark", "") or ""
+        if sb_mark.strip():
+            ydl_opts["sponsorblock_mark"] = [x.strip() for x in sb_mark.split(",") if x.strip()]
+
         postprocessors: list[dict[str, Any]] = []
 
         if opts.extract_audio:

@@ -160,6 +160,15 @@ class SettingsScreen(Screen):
             yield Label("External downloader (aria2c, etc.)", classes="set-label")
             yield Input(value=cfg.external_downloader, placeholder="aria2c", id="set-ext-dl")
 
+            yield Label("Geo bypass", classes="set-label")
+            yield Select([("Off", "false"), ("On", "true")], value="true" if cfg.geo_bypass else "false", id="set-geo", allow_blank=False)
+
+            yield Label("Sleep interval between requests (seconds)", classes="set-label")
+            yield Input(value=str(cfg.sleep_interval), placeholder="0", id="set-sleep")
+
+            yield Label("SponsorBlock mark (comma categories)", classes="set-label")
+            yield Input(value=cfg.sponsorblock_mark, placeholder="sponsor,intro", id="set-sb-mark")
+
             yield Label("Profile name", classes="set-label")
             yield Input(value="", placeholder="work", id="set-profile-name")
             with Horizontal():
@@ -270,6 +279,18 @@ class SettingsScreen(Screen):
             pass
         try:
             cfg.external_downloader = self.query_one("#set-ext-dl", Input).value.strip()
+        except Exception:
+            pass
+        try:
+            cfg.geo_bypass = self.query_one("#set-geo", Select).value == "true"
+        except Exception:
+            pass
+        try:
+            cfg.sleep_interval = float(self.query_one("#set-sleep", Input).value.strip() or "0")
+        except ValueError:
+            pass
+        try:
+            cfg.sponsorblock_mark = self.query_one("#set-sb-mark", Input).value.strip()
         except Exception:
             pass
 
