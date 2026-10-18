@@ -204,6 +204,20 @@ class OptionsScreen(Screen):
                 id="opt-proxy",
             )
 
+            yield Label("Playlist items (e.g. 1-5,7)", classes="opt-label")
+            yield Input(
+                value="",
+                placeholder="1-5,7",
+                id="opt-playlist-items",
+            )
+
+            yield Label("SponsorBlock remove (comma categories, e.g. sponsor,intro)", classes="opt-label")
+            yield Input(
+                value="",
+                placeholder="sponsor,intro,outro",
+                id="opt-sponsorblock",
+            )
+
             yield Checkbox(
                 "Save subtitles as separate file",
                 value=False,
@@ -295,6 +309,14 @@ class OptionsScreen(Screen):
             proxy_val = self.query_one("#opt-proxy", Input).value.strip()
         except Exception:
             proxy_val = ""
+        try:
+            playlist_items_val = self.query_one("#opt-playlist-items", Input).value.strip()
+        except Exception:
+            playlist_items_val = ""
+        try:
+            sponsorblock_val = self.query_one("#opt-sponsorblock", Input).value.strip()
+        except Exception:
+            sponsorblock_val = ""
         selector = format_selector_for(
             self.selected_format,
             audio_only=audio_only,
@@ -315,6 +337,8 @@ class OptionsScreen(Screen):
             audio_format=audio_format,
             custom_format=custom,
             proxy=proxy_val,
+            playlist_items=playlist_items_val,
+            sponsorblock_remove=sponsorblock_val,
         )
 
     def _make_item(self, opts: DownloadOptions) -> DownloadItem:
@@ -403,6 +427,8 @@ class OptionsScreen(Screen):
                     audio_format=opts.audio_format,
                     custom_format=opts.custom_format,
                     proxy=opts.proxy,
+                    playlist_items=opts.playlist_items,
+                    sponsorblock_remove=opts.sponsorblock_remove,
                 )
                 item = DownloadItem.create(
                     url=url,

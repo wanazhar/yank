@@ -91,6 +91,8 @@ class DownloadOptions:
     custom_format: str | None = None
     proxy: str = ""
     rate_limit: str = ""
+    playlist_items: str = ""
+    sponsorblock_remove: str = ""
 
 
 @dataclass
@@ -405,6 +407,16 @@ class DownloadManager:
         if retries:
             ydl_opts["retries"] = retries
             ydl_opts["fragment_retries"] = retries
+
+        # Playlist items range
+        pl_items = opts.playlist_items or getattr(self.config, "playlist_items", "") or ""
+        if pl_items.strip():
+            ydl_opts["playlist_items"] = pl_items.strip()
+
+        # SponsorBlock removal
+        sb = opts.sponsorblock_remove or getattr(self.config, "sponsorblock_remove", "") or ""
+        if sb.strip():
+            ydl_opts["sponsorblock_remove"] = [x.strip() for x in sb.split(",") if x.strip()]
 
         postprocessors: list[dict[str, Any]] = []
 

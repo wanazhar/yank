@@ -314,6 +314,17 @@ class URLInputScreen(Screen):
         # Allow pasting multi-line into single input too
         if "\n" in single:
             return [ln.strip() for ln in single.splitlines() if ln.strip()]
+        # Batch import from a local file path
+        from pathlib import Path
+
+        p = Path(single).expanduser()
+        if p.is_file():
+            try:
+                lines = [ln.strip() for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip()]
+                if lines:
+                    return lines
+            except OSError:
+                pass
         return [single]
 
     @work(exclusive=True, thread=True)

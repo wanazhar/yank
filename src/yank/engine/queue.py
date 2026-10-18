@@ -52,6 +52,8 @@ class QueueItem:
     custom_format: str | None = None
     proxy: str = ""
     rate_limit: str = ""
+    playlist_items: str = ""
+    sponsorblock_remove: str = ""
     error: str = ""
     file_path: str = ""
     created_at: float = field(default_factory=time.time)
@@ -73,6 +75,8 @@ class QueueItem:
             custom_format=self.custom_format,
             proxy=self.proxy,
             rate_limit=self.rate_limit,
+            playlist_items=self.playlist_items,
+            sponsorblock_remove=self.sponsorblock_remove,
         )
 
     @classmethod
@@ -100,6 +104,8 @@ class QueueItem:
             custom_format=opts.custom_format,
             proxy=opts.proxy,
             rate_limit=opts.rate_limit,
+            playlist_items=opts.playlist_items,
+            sponsorblock_remove=opts.sponsorblock_remove,
             error=item.error,
             file_path=item.file_path,
             created_at=item.created_at,
@@ -192,6 +198,8 @@ class QueueEngine:
                             custom_format=_coerce_optional_str(data.get("custom_format")),
                             proxy=str(data.get("proxy") or ""),
                             rate_limit=str(data.get("rate_limit") or ""),
+                            playlist_items=str(data.get("playlist_items") or ""),
+                            sponsorblock_remove=str(data.get("sponsorblock_remove") or ""),
                             error=str(data.get("error") or ""),
                             file_path=str(data.get("file_path") or ""),
                             created_at=_coerce_float(data.get("created_at"), time.time()),

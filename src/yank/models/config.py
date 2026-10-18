@@ -48,6 +48,8 @@ class AppConfig:
     cookies_file: str = ""
     download_archive: str = ""
     rate_limit: str = ""
+    playlist_items: str = ""
+    sponsorblock_remove: str = ""
     retry_count: int = 3
 
     def ensure_valid(self) -> AppConfig:
