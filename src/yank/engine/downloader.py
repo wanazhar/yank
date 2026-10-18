@@ -468,6 +468,13 @@ class DownloadManager:
         if getattr(self.config, "live_from_start", False):
             ydl_opts["live_from_start"] = True
 
+        if getattr(self.config, "no_check_certificate", False):
+            ydl_opts["nocheckcertificate"] = True
+
+        age_limit = getattr(self.config, "age_limit", 0)
+        if age_limit:
+            ydl_opts["age_limit"] = age_limit
+
         if getattr(self.config, "prefer_free_formats", False):
             ydl_opts["prefer_free_formats"] = True
 

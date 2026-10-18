@@ -59,6 +59,8 @@ class AppConfig:
     continue_dl: bool = True
     source_address: str = ""
     live_from_start: bool = False
+    no_check_certificate: bool = False
+    age_limit: int = 0
     webhook_url: str = ""
     history_retention_days: int = 0
     language: str = "en"
