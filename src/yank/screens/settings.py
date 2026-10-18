@@ -226,6 +226,8 @@ class SettingsScreen(Screen):
             yield Button("Save", variant="primary", id="btn-save")
             yield Button("View log", id="btn-log")
             yield Button("Health check", id="btn-health")
+            yield Button("Backup", id="btn-backup")
+            yield Button("Restore", id="btn-restore")
             yield Button("Back", id="btn-back")
         yield Footer()
 
@@ -524,6 +526,43 @@ class SettingsScreen(Screen):
         if available:
             ok, m = updater.update()
             self.notify(m, severity="information" if ok else "error")
+
+    @on(Button.Pressed, "#btn-backup")
+    def on_backup(self) -> None:
+        import shutil
+        from pathlib import Path
+
+        backup_dir = Path.home() / ".config" / "yank" / "backup"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            from yank.paths import CONFIG_PATH, HISTORY_PATH, QUEUE_PATH
+
+            for src in (CONFIG_PATH, HISTORY_PATH, QUEUE_PATH):
+                if src.exists():
+                    shutil.copy2(src, backup_dir / src.name)
+            self.notify(f"Backup saved to {backup_dir}", severity="information")
+        except OSError as exc:
+            self.notify(f"Backup failed: {exc}", severity="error")
+
+    @on(Button.Pressed, "#btn-restore")
+    def on_restore(self) -> None:
+        import shutil
+        from pathlib import Path
+
+        backup_dir = Path.home() / ".config" / "yank" / "backup"
+        if not backup_dir.exists():
+            self.notify("No backup found.", severity="warning")
+            return
+        try:
+            from yank.paths import CONFIG_PATH, HISTORY_PATH, QUEUE_PATH
+
+            for name, dst in (("config.toml", CONFIG_PATH), ("history.json", HISTORY_PATH), ("queue.json", QUEUE_PATH)):
+                src = backup_dir / name
+                if src.exists():
+                    shutil.copy2(src, dst)
+            self.notify("Restored from backup. Restart to apply.", severity="information")
+        except OSError as exc:
+            self.notify(f"Restore failed: {exc}", severity="error")
 
     @on(Button.Pressed, "#btn-health")
     def on_health(self) -> None:
