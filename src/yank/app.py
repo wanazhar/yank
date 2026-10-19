@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
 from textual import work
 from textual.app import App, ComposeResult
@@ -243,6 +243,7 @@ class YankApp(App):
     def __init__(self) -> None:
         super().__init__()
         self.config = load_config()
+        self.plugin_api: Any = None
         from yank.i18n import set_language
 
         set_language(self.config.language)
@@ -300,9 +301,11 @@ class YankApp(App):
         try:
             from yank.plugins import load_plugins
 
-            load_plugins(self)
+            _count, api = load_plugins(self)
+            self.plugin_api = api
         except Exception:
             _logger.debug("Plugin loading failed", exc_info=True)
+            self.plugin_api = None
         self.refresh_status_bar()
         self.push_screen(URLInputScreen())
 
@@ -443,6 +446,13 @@ class YankApp(App):
 
             if getattr(self.config, "email_notify", False):
                 self._send_email(item, hist_status)
+
+            api = getattr(self, "plugin_api", None)
+            if api is not None:
+                try:
+                    api.emit("download_finished", item)
+                except Exception:
+                    _logger.debug("Plugin emit failed", exc_info=True)
 
         def _notify() -> None:
             self.refresh_status_bar()
