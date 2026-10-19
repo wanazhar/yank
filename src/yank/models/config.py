@@ -65,6 +65,7 @@ class AppConfig:
     age_limit: int = 0
     webhook_url: str = ""
     ytdlp_channel: str = "stable"
+    watch_folder: str = ""
     email_notify: bool = False
     smtp_host: str = ""
     smtp_port: int = 587

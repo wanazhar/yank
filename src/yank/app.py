@@ -308,6 +308,7 @@ class YankApp(App):
             self.plugin_api = None
         self.refresh_status_bar()
         self.push_screen(URLInputScreen())
+        self.set_interval(5.0, self._watch_folder_tick)
 
     def get_status_bar(self) -> StatusBar | None:
         try:
@@ -587,6 +588,60 @@ class YankApp(App):
                 s.send_message(msg)
         except Exception:
             _logger.debug("Email delivery failed", exc_info=True)
+
+    def _watch_folder_tick(self) -> None:
+        import shutil
+        from pathlib import Path
+
+        folder = getattr(self.config, "watch_folder", "") or ""
+        if not folder.strip():
+            return
+        p = Path(folder).expanduser()
+        if not p.is_dir():
+            return
+        for f in sorted(p.glob("*.txt")) + sorted(p.glob("*.url")):
+            try:
+                urls = [ln.strip() for ln in f.read_text(encoding="utf-8").splitlines() if ln.strip() and not ln.startswith("#")]
+            except OSError:
+                continue
+            for url in urls:
+                from yank.engine.formats import is_valid_url
+
+                if not is_valid_url(url):
+                    continue
+                try:
+                    from yank.engine.downloader import DownloadItem, DownloadOptions
+                    from yank.engine.formats import (
+                        extract_formats,
+                        format_selector_for,
+                        pick_best_format,
+                    )
+
+                    meta = extract_formats(url, timeout=30)
+                    if not meta.formats:
+                        continue
+                    best = pick_best_format(meta.formats, "best")
+                    if best is None:
+                        continue
+                    selector = format_selector_for(best)
+                    item = DownloadItem.create(
+                        url=url,
+                        title=meta.title,
+                        format_id=best.format_id,
+                        options=DownloadOptions(format_selector=selector),
+                        meta=meta,
+                        selected_format=best,
+                    )
+                    self.queue.add(item)
+                except Exception:
+                    _logger.debug("Watch folder enqueue failed", exc_info=True)
+            # Move processed file
+            try:
+                processed = p / "processed"
+                processed.mkdir(exist_ok=True)
+                shutil.move(str(f), str(processed / f.name))
+            except OSError:
+                pass
 
     async def action_quit(self) -> None:
         confirmed = await self.push_screen_wait(QuitConfirmScreen())
