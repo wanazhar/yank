@@ -25,7 +25,7 @@ from textual.widgets import (
 )
 
 from yank.constants import FORMAT_TIMEOUT
-from yank.engine.downloader import DownloadItem, DownloadOptions
+from yank.engine.downloader import DownloadItem, DownloadOptions, DownloadStatus
 from yank.engine.formats import FormatInfo, VideoMeta, format_selector_for
 from yank.logging import get_logger
 
@@ -215,6 +215,9 @@ class OptionsScreen(Screen):
 
             yield Label("Tag (for queue grouping)", classes="opt-label")
             yield Input(value="", placeholder="music", id="opt-tag")
+
+            yield Label("Schedule in minutes (0 = now)", classes="opt-label")
+            yield Input(value="0", placeholder="0", id="opt-schedule")
 
             yield Label("Playlist items (e.g. 1-5,7)", classes="opt-label")
             yield Input(
@@ -430,9 +433,23 @@ class OptionsScreen(Screen):
         if opts is None:
             return
         item = self._make_item(opts)
-        self._app.queue.add(item)
-        # Start only the newly added item, not all queued items
-        self._app.manager.start(item.id)
+        qi = self._app.queue.add(item)
+        # Schedule support
+        try:
+            mins = float(self.query_one("#opt-schedule", Input).value.strip() or "0")
+        except ValueError:
+            mins = 0.0
+        if mins and mins > 0:
+            import time as _t
+
+            qi.scheduled_at = _t.time() + mins * 60
+            qi.status = "pending"
+            item.status = DownloadStatus.PENDING
+            self._app.queue.sync_from_manager(item) if False else None
+            self._app.queue._emit()
+        else:
+            # Start only the newly added item, not all queued items
+            self._app.manager.start(item.id)
         self._app.refresh_status_bar()
 
         # Enqueue remaining batch URLs with same options (best effort async)

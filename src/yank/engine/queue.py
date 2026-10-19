@@ -61,6 +61,7 @@ class QueueItem:
     meta_artist: str = ""
     note: str = ""
     tag: str = ""
+    scheduled_at: float = 0.0
     error: str = ""
     file_path: str = ""
     created_at: float = field(default_factory=time.time)
@@ -228,6 +229,7 @@ class QueueEngine:
                             meta_artist=str(data.get("meta_artist") or ""),
                             note=str(data.get("note") or ""),
                             tag=str(data.get("tag") or ""),
+                            scheduled_at=_coerce_float(data.get("scheduled_at"), 0.0),
                             error=str(data.get("error") or ""),
                             file_path=str(data.get("file_path") or ""),
                             created_at=_coerce_float(data.get("created_at"), time.time()),
@@ -423,6 +425,25 @@ class QueueEngine:
                 )
             ]
         self._emit()
+
+    def release_scheduled(self) -> int:
+        """Move due scheduled items to QUEUED. Returns count released."""
+        import time as _time
+
+        now = _time.time()
+        released = 0
+        with self._lock:
+            for qi in self._items:
+                if qi.scheduled_at and qi.scheduled_at <= now and qi.status == DownloadStatus.PENDING.value:
+                    qi.status = DownloadStatus.QUEUED.value
+                    di = self.manager.get(qi.id)
+                    if di is not None:
+                        di.status = DownloadStatus.QUEUED
+                    released += 1
+        if released:
+            self._emit()
+            self.manager.start_queued() if hasattr(self.manager, "start_queued") else None
+        return released
 
     def retry_failed(self) -> int:
         """Reset and restart all failed items. Returns count retried."""

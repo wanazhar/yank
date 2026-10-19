@@ -309,6 +309,7 @@ class YankApp(App):
         self.refresh_status_bar()
         self.push_screen(URLInputScreen())
         self.set_interval(5.0, self._watch_folder_tick)
+        self.set_interval(10.0, lambda: self.queue.release_scheduled())
 
     def get_status_bar(self) -> StatusBar | None:
         try:
