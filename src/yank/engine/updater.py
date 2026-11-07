@@ -259,7 +259,9 @@ class SelfUpdater:
             from packaging.version import Version
 
             update = Version(latest) > Version(self._current)
-            msg = f"Update available: {self._current} → {latest}" if update else "yank is up to date."
+            msg = (
+                f"Update available: {self._current} → {latest}" if update else "yank is up to date."
+            )
             return update, latest, msg
         except Exception as exc:
             return False, "", f"Update check failed: {exc}"

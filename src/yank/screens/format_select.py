@@ -13,10 +13,11 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Footer, Header
-from yank.i18n import LocalizedButton as Button, LocalizedLabel as Label
 
 from yank.constants import MAX_SUBTITLE_DISPLAY
 from yank.engine.formats import FormatInfo, VideoMeta, pick_best_format
+from yank.i18n import LocalizedButton as Button
+from yank.i18n import LocalizedLabel as Label
 from yank.logging import get_logger
 from yank.widgets.format_table import FormatTable
 

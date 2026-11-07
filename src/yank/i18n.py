@@ -3,6 +3,11 @@
 from __future__ import annotations
 
 import json
+from typing import Any
+
+from textual.widgets import Button as _Button
+from textual.widgets import Checkbox as _Checkbox
+from textual.widgets import Label as _Label
 
 from yank.logging import get_logger
 from yank.paths import CONFIG_DIR
@@ -47,17 +52,14 @@ def t(key: str, **kwargs: object) -> str:
     return value
 
 
-from textual.widgets import Button as _Button, Checkbox as _Checkbox, Label as _Label
-
-
 class LocalizedLabel(_Label):
     """Translate label text using the active locale."""
 
     def __init__(self, content="", *args, **kwargs):
         super().__init__(t(content) if isinstance(content, str) else content, *args, **kwargs)
 
-    def update(self, content=""):
-        return super().update(t(content) if isinstance(content, str) else content)
+    def update(self, content: Any = "", *, layout: bool = True) -> None:
+        super().update(t(content) if isinstance(content, str) else content, layout=layout)
 
 
 class LocalizedButton(_Button):

@@ -14,10 +14,12 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Footer, Header, Input, Static, TextArea
-from yank.i18n import LocalizedButton as Button, LocalizedCheckbox as Checkbox, LocalizedLabel as Label
 
 from yank.constants import FORMAT_TIMEOUT
 from yank.engine.formats import detect_platform, is_valid_url
+from yank.i18n import LocalizedButton as Button
+from yank.i18n import LocalizedCheckbox as Checkbox
+from yank.i18n import LocalizedLabel as Label
 
 
 class URLInputScreen(Screen):
@@ -321,7 +323,9 @@ class URLInputScreen(Screen):
         p = Path(single).expanduser()
         if p.is_file():
             try:
-                lines = [ln.strip() for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip()]
+                lines = [
+                    ln.strip() for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip()
+                ]
                 if lines:
                     return lines
             except OSError:
@@ -377,8 +381,10 @@ class URLInputScreen(Screen):
 
         def _push() -> None:
             self.query_one("#url-error", Label).update("")
-            self.app.push_screen(FormatSelectScreen(
-                meta=meta, remaining_urls=remaining, playlist_mode=expanded_playlist
-            ))
+            self.app.push_screen(
+                FormatSelectScreen(
+                    meta=meta, remaining_urls=remaining, playlist_mode=expanded_playlist
+                )
+            )
 
         self.app.call_from_thread(_push)

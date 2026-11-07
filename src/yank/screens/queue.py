@@ -13,10 +13,11 @@ from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Input
-from yank.i18n import LocalizedButton as Button, LocalizedLabel as Label
 
 from yank.constants import QUEUE_POLL_INTERVAL
 from yank.engine.downloader import DownloadStatus
+from yank.i18n import LocalizedButton as Button
+from yank.i18n import LocalizedLabel as Label
 from yank.logging import get_logger
 from yank.widgets.progress import QueueProgressSummary
 
@@ -129,7 +130,9 @@ class QueueScreen(Screen):
             q = ""
         items = queue.get_items()
         if q:
-            items = [qi for qi in items if q in (qi.title or "").lower() or q in (qi.url or "").lower()]
+            items = [
+                qi for qi in items if q in (qi.title or "").lower() or q in (qi.url or "").lower()
+            ]
         for i, qi in enumerate(items):
             di = manager.get(qi.id)
             status = qi.status

@@ -20,11 +20,13 @@ from textual.widgets import (
     Input,
     Select,
 )
-from yank.i18n import LocalizedButton as Button, LocalizedCheckbox as Checkbox, LocalizedLabel as Label
 
 from yank.constants import FORMAT_TIMEOUT
 from yank.engine.downloader import DownloadItem, DownloadOptions, DownloadStatus
 from yank.engine.formats import FormatInfo, VideoMeta, format_selector_for
+from yank.i18n import LocalizedButton as Button
+from yank.i18n import LocalizedCheckbox as Checkbox
+from yank.i18n import LocalizedLabel as Label
 from yank.logging import get_logger
 
 _logger = get_logger(__name__)
@@ -226,7 +228,9 @@ class OptionsScreen(Screen):
                 id="opt-playlist-items",
             )
 
-            yield Label("SponsorBlock remove (comma categories, e.g. sponsor,intro)", classes="opt-label")
+            yield Label(
+                "SponsorBlock remove (comma categories, e.g. sponsor,intro)", classes="opt-label"
+            )
             yield Input(
                 value="",
                 placeholder="sponsor,intro,outro",
@@ -433,7 +437,8 @@ class OptionsScreen(Screen):
         try:
             entries = PlaylistEntries(None, {"entries": urls})
             selected = [
-                url for part in entries.parse_playlist_items(opts.playlist_items)
+                url
+                for part in entries.parse_playlist_items(opts.playlist_items)
                 for _, url in entries[part]
             ]
         except ValueError as exc:
@@ -462,6 +467,7 @@ class OptionsScreen(Screen):
                 delay = 0.0
             self._enqueue_remaining(urls, opts, start_first=True, delay=delay)
             from yank.screens.queue import QueueScreen
+
             self.app.push_screen(QueueScreen())
             return
         item = self._make_item(opts)
@@ -503,6 +509,7 @@ class OptionsScreen(Screen):
         if urls[0] != self.meta.url:
             self._enqueue_remaining(urls, opts)
             from yank.screens.queue import QueueScreen
+
             self.app.push_screen(QueueScreen())
             return
         item = self._make_item(opts)
@@ -517,7 +524,12 @@ class OptionsScreen(Screen):
 
     @work(thread=True)
     def _enqueue_remaining(
-        self, urls: list[str], opts: DownloadOptions, *, start_first: bool = False, delay: float = 0.0
+        self,
+        urls: list[str],
+        opts: DownloadOptions,
+        *,
+        start_first: bool = False,
+        delay: float = 0.0,
     ) -> None:
         from yank.engine.formats import FormatExtractError, extract_formats, pick_best_format
 
@@ -579,6 +591,7 @@ class OptionsScreen(Screen):
                     qi = self._app.queue.add(it)
                     if start and delay:
                         import time
+
                         qi.scheduled_at = time.time() + delay * 60
                         self._app.queue._emit()
                     elif start:

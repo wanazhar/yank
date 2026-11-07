@@ -16,10 +16,11 @@ from textual.events import Click
 from textual.screen import Screen
 from textual.timer import Timer
 from textual.widgets import Footer, Header
-from yank.i18n import LocalizedButton as Button, LocalizedLabel as Label
 
 from yank.constants import DOWNLOAD_POLL_INTERVAL
 from yank.engine.downloader import DownloadStatus
+from yank.i18n import LocalizedButton as Button
+from yank.i18n import LocalizedLabel as Label
 from yank.logging import get_logger
 from yank.widgets.progress import DownloadProgressBar, QueueProgressSummary
 

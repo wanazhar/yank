@@ -7,9 +7,9 @@ from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import ProgressBar, Static
-from yank.i18n import LocalizedLabel as Label
 
 from yank.engine.downloader import DownloadItem, DownloadStatus
+from yank.i18n import LocalizedLabel as Label
 from yank.logging import get_logger
 
 _logger = get_logger(__name__)

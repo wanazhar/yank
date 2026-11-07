@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, ClassVar, Literal
 
 from textual import work
@@ -12,11 +13,12 @@ from textual.containers import Horizontal, Vertical
 from textual.events import Key
 from textual.screen import ModalScreen
 from textual.widgets import TextArea
-from yank.i18n import LocalizedButton as Button, LocalizedLabel as Label
 
 from yank.engine.downloader import DownloadItem, DownloadManager, DownloadStatus
 from yank.engine.queue import QueueEngine
 from yank.engine.updater import YtDlpManager
+from yank.i18n import LocalizedButton as Button
+from yank.i18n import LocalizedLabel as Label
 from yank.logging import get_logger
 from yank.models.config import AppConfig, load_config, save_config
 from yank.models.history import HistoryEntry, HistoryStore
@@ -254,7 +256,7 @@ class YankApp(App):
 
         self._watch_lock = threading.Lock()
         self.config = load_config()
-        self.restore_backup_on_exit = None
+        self.restore_backup_on_exit: Path | None = None
         self.plugin_api: Any = None
         from yank.i18n import set_language
 
@@ -375,9 +377,7 @@ class YankApp(App):
                 self.call_from_thread(self.refresh_status_bar)
         except Exception:
             _logger.debug("Startup yt-dlp task failed", exc_info=True)
-            self.call_from_thread(
-                self._set_notice, "yt-dlp startup check failed — open Settings."
-            )
+            self.call_from_thread(self._set_notice, "yt-dlp startup check failed — open Settings.")
 
     def _set_notice(self, text: str) -> None:
         self._update_notice = text
@@ -593,7 +593,9 @@ class YankApp(App):
             msg["Subject"] = f"yank download {status}: {item.title}"
             msg["From"] = getattr(cfg, "smtp_user", "") or "yank@localhost"
             msg["To"] = getattr(cfg, "email_to", "") or getattr(cfg, "smtp_user", "")
-            msg.set_content(f"Title: {item.title}\nURL: {item.url}\nStatus: {status}\nFile: {item.file_path}\nError: {item.error}")
+            msg.set_content(
+                f"Title: {item.title}\nURL: {item.url}\nStatus: {status}\nFile: {item.file_path}\nError: {item.error}"
+            )
             with smtplib.SMTP(host, getattr(cfg, "smtp_port", 587), timeout=15) as s:
                 s.starttls()
                 user = getattr(cfg, "smtp_user", "") or ""
@@ -625,7 +627,11 @@ class YankApp(App):
             return
         for f in sorted(p.glob("*.txt")) + sorted(p.glob("*.url")):
             try:
-                urls = [ln.strip() for ln in f.read_text(encoding="utf-8").splitlines() if ln.strip() and not ln.startswith("#")]
+                urls = [
+                    ln.strip()
+                    for ln in f.read_text(encoding="utf-8").splitlines()
+                    if ln.strip() and not ln.startswith("#")
+                ]
             except (OSError, UnicodeError):
                 _logger.warning("Cannot read watch file %s", f, exc_info=True)
                 continue
@@ -682,8 +688,11 @@ class YankApp(App):
             except OSError:
                 pass
 
-    @work
     async def action_quit(self) -> None:
+        self._confirm_quit()
+
+    @work
+    async def _confirm_quit(self) -> None:
         confirmed = await self.push_screen_wait(QuitConfirmScreen())
         if not confirmed:
             return
@@ -698,6 +707,7 @@ class YankApp(App):
             _logger.debug("queue.save() / save_config() failed during quit", exc_info=True)
         if self.restore_backup_on_exit is not None:
             import shutil
+
             from yank.paths import CONFIG_PATH, HISTORY_PATH, QUEUE_PATH
 
             try:

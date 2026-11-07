@@ -17,9 +17,10 @@ from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Input, Select
-from yank.i18n import LocalizedButton as Button, LocalizedLabel as Label
 
 from yank.constants import FORMAT_TIMEOUT
+from yank.i18n import LocalizedButton as Button
+from yank.i18n import LocalizedLabel as Label
 from yank.models.history import HistoryEntry
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -122,7 +123,13 @@ class HistoryScreen(Screen):
         yield Label("History", id="hist-header")
         yield Input(placeholder="Search title or URL…", id="hist-search")
         yield Select(
-            [("All", "all"), ("Success", "success"), ("Error", "error"), ("Cancelled", "cancelled"), ("Favorites", "favorites")],
+            [
+                ("All", "all"),
+                ("Success", "success"),
+                ("Error", "error"),
+                ("Cancelled", "cancelled"),
+                ("Favorites", "favorites"),
+            ],
             value="all",
             id="hist-filter",
             allow_blank=False,
@@ -493,10 +500,21 @@ class HistoryScreen(Screen):
             out.parent.mkdir(parents=True, exist_ok=True)
             with open(out, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
-                writer.writerow(["Date", "Title", "URL", "Format", "File", "Status", "Size", "Error"])
+                writer.writerow(
+                    ["Date", "Title", "URL", "Format", "File", "Status", "Size", "Error"]
+                )
                 for e in entries:
                     writer.writerow(
-                        [e.date, e.title, e.url, e.format_id, e.file_path, e.status, e.filesize, e.error]
+                        [
+                            e.date,
+                            e.title,
+                            e.url,
+                            e.format_id,
+                            e.file_path,
+                            e.status,
+                            e.filesize,
+                            e.error,
+                        ]
                     )
             self.notify(f"Exported {len(entries)} entries to {out}", severity="information")
         except OSError as exc:

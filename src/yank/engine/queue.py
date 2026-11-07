@@ -207,7 +207,9 @@ class QueueEngine:
                             format_id=str(data.get("format_id") or ""),
                             status=str(data.get("status") or "pending"),
                             output_dir=str(data.get("output_dir") or ""),
-                            filename_template=str(data.get("filename_template") or "%(title)s.%(ext)s"),
+                            filename_template=str(
+                                data.get("filename_template") or "%(title)s.%(ext)s"
+                            ),
                             format_selector=str(data.get("format_selector") or "best"),
                             download_thumbnail=bool(data.get("download_thumbnail", False)),
                             embed_metadata=bool(data.get("embed_metadata", True)),
@@ -434,7 +436,11 @@ class QueueEngine:
         released = 0
         with self._lock:
             for qi in self._items:
-                if qi.scheduled_at and qi.scheduled_at <= now and qi.status == DownloadStatus.PENDING.value:
+                if (
+                    qi.scheduled_at
+                    and qi.scheduled_at <= now
+                    and qi.status == DownloadStatus.PENDING.value
+                ):
                     qi.status = DownloadStatus.QUEUED.value
                     di = self.manager.get(qi.id)
                     if di is not None:

@@ -8,8 +8,8 @@ from pathlib import Path
 from textual.app import ComposeResult
 from textual.reactive import reactive
 from textual.widget import Widget
-from yank.i18n import LocalizedLabel as Label
 
+from yank.i18n import LocalizedLabel as Label
 from yank.logging import get_logger
 
 _logger = get_logger(__name__)

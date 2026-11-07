@@ -425,7 +425,6 @@ class DownloadManager:
         # SponsorBlock removal
         sb = opts.sponsorblock_remove or getattr(self.config, "sponsorblock_remove", "") or ""
 
-
         # Metadata overrides
         meta_args = []
         if opts.meta_title.strip():
@@ -437,7 +436,6 @@ class DownloadManager:
             ffmpeg_args = list(existing.get("ffmpeg", [])) if isinstance(existing, dict) else []
             ffmpeg_args = ffmpeg_args + meta_args
             ydl_opts["postprocessor_args"] = {"ffmpeg": ffmpeg_args}
-
 
         # Concurrent fragments
         cf = getattr(self.config, "concurrent_fragments", 1)
@@ -480,7 +478,6 @@ class DownloadManager:
         # SponsorBlock mark
         sb_mark = getattr(self.config, "sponsorblock_mark", "") or ""
 
-
         postprocessors: list[dict[str, Any]] = []
 
         if opts.extract_audio:
@@ -512,10 +509,12 @@ class DownloadManager:
             ydl_opts["subtitleslangs"] = langs
             ydl_opts["subtitlesformat"] = opts.subtitle_format or "srt"
             if opts.embed_subtitles:
-                postprocessors.append({
-                    "key": "FFmpegEmbedSubtitle",
-                    "already_have_subtitle": opts.write_subtitles_file,
-                })
+                postprocessors.append(
+                    {
+                        "key": "FFmpegEmbedSubtitle",
+                        "already_have_subtitle": opts.write_subtitles_file,
+                    }
+                )
 
         if opts.split_chapters or getattr(self.config, "split_chapters", False):
             postprocessors.append({"key": "FFmpegSplitChapters"})
@@ -542,11 +541,14 @@ class DownloadManager:
                 sponsor_args.extend(["--sponsorblock-mark", sb_mark.strip()])
             if len(sponsor_args) > 1:
                 sponsor_processors = [
-                    pp for pp in yt_dlp.parse_options(sponsor_args).ydl_opts["postprocessors"]
+                    pp
+                    for pp in yt_dlp.parse_options(sponsor_args).ydl_opts["postprocessors"]
                     if pp["key"] in ("SponsorBlock", "ModifyChapters")
                 ]
                 ydl_opts["postprocessors"] = sponsor_processors + postprocessors
-            if sections := (opts.download_sections or getattr(self.config, "download_sections", "") or "").strip():
+            if sections := (
+                opts.download_sections or getattr(self.config, "download_sections", "") or ""
+            ).strip():
                 ydl_opts["download_ranges"] = yt_dlp.parse_options(
                     ["--ignore-config", "--download-sections", sections]
                 ).ydl_opts["download_ranges"]
@@ -559,7 +561,8 @@ class DownloadManager:
                         temporary = path.with_name(f"{path.stem}.normalized{path.suffix}")
                         try:
                             self.run_ffmpeg(
-                                str(path), str(temporary),
+                                str(path),
+                                str(temporary),
                                 ["-map", "0", "-c:v", "copy", "-c:s", "copy", "-af", "loudnorm"],
                             )
                             temporary.replace(path)
