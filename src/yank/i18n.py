@@ -45,3 +45,30 @@ def t(key: str, **kwargs: object) -> str:
         except (KeyError, ValueError):
             return value
     return value
+
+
+from textual.widgets import Button as _Button, Checkbox as _Checkbox, Label as _Label
+
+
+class LocalizedLabel(_Label):
+    """Translate label text using the active locale."""
+
+    def __init__(self, content="", *args, **kwargs):
+        super().__init__(t(content) if isinstance(content, str) else content, *args, **kwargs)
+
+    def update(self, content=""):
+        return super().update(t(content) if isinstance(content, str) else content)
+
+
+class LocalizedButton(_Button):
+    """Translate button captions using the active locale."""
+
+    def __init__(self, label=None, *args, **kwargs):
+        super().__init__(t(label) if isinstance(label, str) else label, *args, **kwargs)
+
+
+class LocalizedCheckbox(_Checkbox):
+    """Translate checkbox captions using the active locale."""
+
+    def __init__(self, label="", *args, **kwargs):
+        super().__init__(t(label) if isinstance(label, str) else label, *args, **kwargs)

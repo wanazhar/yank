@@ -12,7 +12,8 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.screen import Screen
-from textual.widgets import Button, DataTable, Footer, Header, Input, Label
+from textual.widgets import DataTable, Footer, Header, Input
+from yank.i18n import LocalizedButton as Button, LocalizedLabel as Label
 
 from yank.constants import QUEUE_POLL_INTERVAL
 from yank.engine.downloader import DownloadStatus

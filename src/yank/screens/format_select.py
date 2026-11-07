@@ -12,7 +12,8 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Label
+from textual.widgets import Footer, Header
+from yank.i18n import LocalizedButton as Button, LocalizedLabel as Label
 
 from yank.constants import MAX_SUBTITLE_DISPLAY
 from yank.engine.formats import FormatInfo, VideoMeta, pick_best_format

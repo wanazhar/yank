@@ -13,7 +13,8 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
-from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Static, TextArea
+from textual.widgets import Footer, Header, Input, Static, TextArea
+from yank.i18n import LocalizedButton as Button, LocalizedCheckbox as Checkbox, LocalizedLabel as Label
 
 from yank.constants import FORMAT_TIMEOUT
 from yank.engine.formats import detect_platform, is_valid_url

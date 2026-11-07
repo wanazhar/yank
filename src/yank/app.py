@@ -11,7 +11,8 @@ from textual.command import DiscoveryHit, Hit, Hits, Provider
 from textual.containers import Horizontal, Vertical
 from textual.events import Key
 from textual.screen import ModalScreen
-from textual.widgets import Button, Label, TextArea
+from textual.widgets import TextArea
+from yank.i18n import LocalizedButton as Button, LocalizedLabel as Label
 
 from yank.engine.downloader import DownloadItem, DownloadManager, DownloadStatus
 from yank.engine.queue import QueueEngine

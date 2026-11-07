@@ -15,13 +15,12 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import (
-    Button,
     Footer,
     Header,
     Input,
-    Label,
     Select,
 )
+from yank.i18n import LocalizedButton as Button, LocalizedLabel as Label
 
 from yank.logging import get_logger
 from yank.models.config import AppConfig, save_config

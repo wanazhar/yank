@@ -15,14 +15,12 @@ from textual.binding import Binding
 from textual.containers import Horizontal, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import (
-    Button,
-    Checkbox,
     Footer,
     Header,
     Input,
-    Label,
     Select,
 )
+from yank.i18n import LocalizedButton as Button, LocalizedCheckbox as Checkbox, LocalizedLabel as Label
 
 from yank.constants import FORMAT_TIMEOUT
 from yank.engine.downloader import DownloadItem, DownloadOptions, DownloadStatus

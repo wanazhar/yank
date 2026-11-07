@@ -16,7 +16,8 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.screen import Screen
-from textual.widgets import Button, DataTable, Footer, Header, Input, Label, Select
+from textual.widgets import DataTable, Footer, Header, Input, Select
+from yank.i18n import LocalizedButton as Button, LocalizedLabel as Label
 
 from yank.constants import FORMAT_TIMEOUT
 from yank.models.history import HistoryEntry

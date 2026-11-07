@@ -100,6 +100,11 @@ filename_template = "%(title)s.%(ext)s"
 subtitle_lang = "en"
 ```
 
+For custom interface translations, set `language` in Settings and place a JSON
+object mapping English label and button text to translated text in
+`~/.config/yank/locales/<language>.json`. New screens use the selected language;
+restart to refresh screens already open. Missing translations fall back to English.
+
 ## How it works
 
 yank wraps **yt-dlp** as a Python library (not subprocess). All format extraction, downloading, and metadata handling goes through `yt_dlp.YoutubeDL` with progress hooks. The TUI is built with **Textual** — a modern Python terminal UI framework.

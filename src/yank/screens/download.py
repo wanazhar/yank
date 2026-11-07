@@ -15,7 +15,8 @@ from textual.dom import DOMNode
 from textual.events import Click
 from textual.screen import Screen
 from textual.timer import Timer
-from textual.widgets import Button, Footer, Header, Label
+from textual.widgets import Footer, Header
+from yank.i18n import LocalizedButton as Button, LocalizedLabel as Label
 
 from yank.constants import DOWNLOAD_POLL_INTERVAL
 from yank.engine.downloader import DownloadStatus
