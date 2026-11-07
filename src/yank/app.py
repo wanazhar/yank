@@ -282,6 +282,7 @@ class YankApp(App):
     def on_mount(self) -> None:
         self._startup_ytdlp()
         self.queue.load()
+        self.push_screen(URLInputScreen())
         if not getattr(self.config, "seen_welcome", False):
             self.config.seen_welcome = True
             try:
@@ -308,7 +309,6 @@ class YankApp(App):
             _logger.debug("Plugin loading failed", exc_info=True)
             self.plugin_api = None
         self.refresh_status_bar()
-        self.push_screen(URLInputScreen())
         self.set_interval(5.0, self._watch_folder_tick)
         self.set_interval(10.0, lambda: self.queue.release_scheduled())
 
