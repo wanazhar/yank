@@ -316,19 +316,19 @@ class OptionsScreen(Screen):
         sub_langs: list[str] = []
         if self.meta.has_subtitles:
             embed_subs = self.query_one("#opt-subs", Checkbox).value
-            if embed_subs:
-                try:
-                    lang = self.query_one("#opt-sublang", Select).value
-                    if lang and lang != Select.BLANK:
-                        sub_langs = [str(lang)]
-                except Exception:
-                    sub_langs = [cfg.default_subtitle_lang]
 
         write_subs_file = False
         try:
             write_subs_file = self.query_one("#opt-write-subs", Checkbox).value
         except Exception:
             _logger.debug("Failed to read write-subs checkbox", exc_info=True)
+        if self.meta.has_subtitles and (embed_subs or write_subs_file):
+            try:
+                lang = self.query_one("#opt-sublang", Select).value
+                if lang and lang != Select.BLANK:
+                    sub_langs = [str(lang)]
+            except Exception:
+                sub_langs = [cfg.default_subtitle_lang]
 
         normalize_audio = False
         try:
