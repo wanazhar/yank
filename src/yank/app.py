@@ -644,6 +644,7 @@ class YankApp(App):
             except OSError:
                 pass
 
+    @work
     async def action_quit(self) -> None:
         confirmed = await self.push_screen_wait(QuitConfirmScreen())
         if not confirmed:
