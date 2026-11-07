@@ -554,23 +554,14 @@ class SettingsScreen(Screen):
 
     @on(Button.Pressed, "#btn-restore")
     def on_restore(self) -> None:
-        import shutil
         from pathlib import Path
 
         backup_dir = Path.home() / ".config" / "yank" / "backup"
         if not backup_dir.exists():
             self.notify("No backup found.", severity="warning")
             return
-        try:
-            from yank.paths import CONFIG_PATH, HISTORY_PATH, QUEUE_PATH
-
-            for name, dst in (("config.toml", CONFIG_PATH), ("history.json", HISTORY_PATH), ("queue.json", QUEUE_PATH)):
-                src = backup_dir / name
-                if src.exists():
-                    shutil.copy2(src, dst)
-            self.notify("Restored from backup. Restart to apply.", severity="information")
-        except OSError as exc:
-            self.notify(f"Restore failed: {exc}", severity="error")
+        self._app.restore_backup_on_exit = backup_dir
+        self.notify("Backup will be restored when you quit. Restart to apply.", severity="information")
 
     @on(Button.Pressed, "#btn-diagnostics")
     def on_diagnostics(self) -> None:

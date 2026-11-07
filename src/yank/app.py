@@ -243,6 +243,7 @@ class YankApp(App):
     def __init__(self) -> None:
         super().__init__()
         self.config = load_config()
+        self.restore_backup_on_exit = None
         self.plugin_api: Any = None
         from yank.i18n import set_language
 
@@ -658,4 +659,17 @@ class YankApp(App):
             save_config(self.config)
         except Exception:
             _logger.debug("queue.save() / save_config() failed during quit", exc_info=True)
+        if self.restore_backup_on_exit is not None:
+            import shutil
+            from yank.paths import CONFIG_PATH, HISTORY_PATH, QUEUE_PATH
+
+            try:
+                for dst in (CONFIG_PATH, HISTORY_PATH, QUEUE_PATH):
+                    src = self.restore_backup_on_exit / dst.name
+                    if src.exists():
+                        dst.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(src, dst)
+            except OSError as exc:
+                self.notify(f"Restore failed: {exc}", severity="error")
+                return
         self.exit()
