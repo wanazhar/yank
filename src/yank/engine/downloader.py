@@ -402,7 +402,9 @@ class DownloadManager:
         # Rate limit
         rate_limit = opts.rate_limit or getattr(self.config, "rate_limit", "") or ""
         if rate_limit.strip():
-            ydl_opts["limit_rate"] = rate_limit.strip()
+            from yt_dlp.utils import parse_bytes
+
+            ydl_opts["ratelimit"] = parse_bytes(rate_limit.strip())
 
         # Download archive
         archive = getattr(self.config, "download_archive", "") or ""
