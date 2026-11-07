@@ -424,8 +424,6 @@ class DownloadManager:
 
         # SponsorBlock removal
         sb = opts.sponsorblock_remove or getattr(self.config, "sponsorblock_remove", "") or ""
-        if sb.strip():
-            ydl_opts["sponsorblock_remove"] = [x.strip() for x in sb.split(",") if x.strip()]
 
 
         # Metadata overrides
@@ -485,8 +483,6 @@ class DownloadManager:
 
         # SponsorBlock mark
         sb_mark = getattr(self.config, "sponsorblock_mark", "") or ""
-        if sb_mark.strip():
-            ydl_opts["sponsorblock_mark"] = [x.strip() for x in sb_mark.split(",") if x.strip()]
 
 
         postprocessors: list[dict[str, Any]] = []
@@ -537,6 +533,14 @@ class DownloadManager:
             return
 
         try:
+            sponsor_args = ["--ignore-config"]
+            if sb.strip():
+                sponsor_args.extend(["--sponsorblock-remove", sb.strip()])
+            if sb_mark.strip():
+                sponsor_args.extend(["--sponsorblock-mark", sb_mark.strip()])
+            if len(sponsor_args) > 1:
+                sponsor_processors = yt_dlp.parse_options(sponsor_args).ydl_opts["postprocessors"]
+                ydl_opts["postprocessors"] = sponsor_processors + postprocessors
             if sections := (opts.download_sections or getattr(self.config, "download_sections", "") or "").strip():
                 ydl_opts["download_ranges"] = yt_dlp.parse_options(
                     ["--ignore-config", "--download-sections", sections]
