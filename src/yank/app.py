@@ -95,12 +95,19 @@ class YankCommandProvider(Provider):
         for name, method, help_text in _PALETTE_COMMANDS:
             callback = getattr(self.app, method)
             yield DiscoveryHit(name, callback, help=help_text)
+        api = getattr(self.app, "plugin_api", None)
+        for name, callback, help_text in api.commands() if api else ():
+            yield DiscoveryHit(name, callback, help=help_text)
 
     async def search(self, query: str) -> Hits:
         matcher = self.matcher(query)
         for name, method, help_text in _PALETTE_COMMANDS:
             if (score := matcher.match(name)) > 0:
                 callback = getattr(self.app, method)
+                yield Hit(score, matcher.highlight(name), callback, help=help_text)
+        api = getattr(self.app, "plugin_api", None)
+        for name, callback, help_text in api.commands() if api else ():
+            if (score := matcher.match(name)) > 0:
                 yield Hit(score, matcher.highlight(name), callback, help=help_text)
 
 
