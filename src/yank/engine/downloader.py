@@ -459,7 +459,7 @@ class DownloadManager:
         if getattr(self.config, "geo_bypass", False):
             ydl_opts["geo_bypass"] = True
 
-        ydl_opts["continue_dl"] = getattr(self.config, "continue_dl", True)
+        ydl_opts["continuedl"] = getattr(self.config, "continue_dl", True)
 
         sa = getattr(self.config, "source_address", "") or ""
         if sa.strip():
