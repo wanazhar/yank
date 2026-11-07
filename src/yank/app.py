@@ -249,6 +249,9 @@ class YankApp(App):
 
     def __init__(self) -> None:
         super().__init__()
+        import threading
+
+        self._watch_lock = threading.Lock()
         self.config = load_config()
         self.restore_backup_on_exit = None
         self.plugin_api: Any = None
@@ -600,7 +603,16 @@ class YankApp(App):
         except Exception:
             _logger.debug("Email delivery failed", exc_info=True)
 
+    @work(thread=True)
     def _watch_folder_tick(self) -> None:
+        if not self._watch_lock.acquire(blocking=False):
+            return
+        try:
+            self._process_watch_folder()
+        finally:
+            self._watch_lock.release()
+
+    def _process_watch_folder(self) -> None:
         import shutil
         from pathlib import Path
 
