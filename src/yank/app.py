@@ -512,8 +512,10 @@ class YankApp(App):
         self.refresh_status_bar()
 
     def action_go_home_palette(self) -> None:
-        while len(self.screen_stack) > 1:
+        while len(self.screen_stack) > 1 and not isinstance(self.screen, URLInputScreen):
             self.pop_screen()
+        if not isinstance(self.screen, URLInputScreen):
+            self.push_screen(URLInputScreen())
 
     def action_toggle_theme_palette(self) -> None:
         self.config.theme = "light" if self.config.theme == "dark" else "dark"
