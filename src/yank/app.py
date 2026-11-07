@@ -625,12 +625,15 @@ class YankApp(App):
         for f in sorted(p.glob("*.txt")) + sorted(p.glob("*.url")):
             try:
                 urls = [ln.strip() for ln in f.read_text(encoding="utf-8").splitlines() if ln.strip() and not ln.startswith("#")]
-            except OSError:
+            except (OSError, UnicodeError):
+                _logger.warning("Cannot read watch file %s", f, exc_info=True)
                 continue
+            failed = []
             for url in urls:
                 from yank.engine.formats import is_valid_url
 
                 if not is_valid_url(url):
+                    failed.append(url)
                     continue
                 try:
                     from yank.engine.downloader import DownloadItem, DownloadOptions
@@ -642,9 +645,11 @@ class YankApp(App):
 
                     meta = extract_formats(url, timeout=30)
                     if not meta.formats:
+                        failed.append(url)
                         continue
                     best = pick_best_format(meta.formats, "best")
                     if best is None:
+                        failed.append(url)
                         continue
                     selector = format_selector_for(best)
                     item = DownloadItem.create(
@@ -657,7 +662,17 @@ class YankApp(App):
                     )
                     self.queue.add(item)
                 except Exception:
+                    failed.append(url)
                     _logger.debug("Watch folder enqueue failed", exc_info=True)
+            if failed:
+                if len(failed) != len(urls):
+                    try:
+                        tmp = f.with_name(f.name + ".tmp")
+                        tmp.write_text("\n".join(failed) + "\n", encoding="utf-8")
+                        tmp.replace(f)
+                    except OSError:
+                        _logger.warning("Cannot update watch file %s", f, exc_info=True)
+                continue
             # Move processed file
             try:
                 processed = p / "processed"
