@@ -425,10 +425,6 @@ class DownloadManager:
         if sb.strip():
             ydl_opts["sponsorblock_remove"] = [x.strip() for x in sb.split(",") if x.strip()]
 
-        # Audio normalization
-        normalize = opts.audio_normalize or getattr(self.config, "audio_normalize", False)
-        if normalize:
-            ydl_opts["postprocessor_args"] = {"ffmpeg": ["-af", "loudnorm"]}
 
         # Metadata overrides
         meta_args = []
@@ -543,7 +539,26 @@ class DownloadManager:
                 ydl_opts["download_ranges"] = yt_dlp.parse_options(
                     ["--ignore-config", "--download-sections", sections]
                 ).ydl_opts["download_ranges"]
+            if opts.audio_normalize or getattr(self.config, "audio_normalize", False):
+                from yt_dlp.postprocessor.ffmpeg import FFmpegPostProcessor
+
+                class NormalizeAudio(FFmpegPostProcessor):
+                    def run(self, info):
+                        path = Path(info["filepath"])
+                        temporary = path.with_name(f"{path.stem}.normalized{path.suffix}")
+                        try:
+                            self.run_ffmpeg(
+                                str(path), str(temporary),
+                                ["-map", "0", "-c:v", "copy", "-c:s", "copy", "-af", "loudnorm"],
+                            )
+                            temporary.replace(path)
+                        finally:
+                            temporary.unlink(missing_ok=True)
+                        return [], info
+
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                if opts.audio_normalize or getattr(self.config, "audio_normalize", False):
+                    ydl.add_post_processor(NormalizeAudio(ydl))
                 with self._lock:
                     self._ydl_instances[item_id] = ydl
                     if cancel_flag.is_set():
