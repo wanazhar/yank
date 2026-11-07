@@ -512,7 +512,10 @@ class DownloadManager:
             ydl_opts["subtitleslangs"] = langs
             ydl_opts["subtitlesformat"] = opts.subtitle_format or "srt"
             if opts.embed_subtitles:
-                postprocessors.append({"key": "FFmpegEmbedSubtitle"})
+                postprocessors.append({
+                    "key": "FFmpegEmbedSubtitle",
+                    "already_have_subtitle": opts.write_subtitles_file,
+                })
 
         if opts.split_chapters or getattr(self.config, "split_chapters", False):
             postprocessors.append({"key": "FFmpegSplitChapters"})
