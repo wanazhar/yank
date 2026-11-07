@@ -438,10 +438,6 @@ class DownloadManager:
             ffmpeg_args = ffmpeg_args + meta_args
             ydl_opts["postprocessor_args"] = {"ffmpeg": ffmpeg_args}
 
-        # Split by chapters
-        split = opts.split_chapters or getattr(self.config, "split_chapters", False)
-        if split:
-            ydl_opts["split_chapters"] = True
 
         # Concurrent fragments
         cf = getattr(self.config, "concurrent_fragments", 1)
@@ -517,6 +513,9 @@ class DownloadManager:
             ydl_opts["subtitlesformat"] = opts.subtitle_format or "srt"
             if opts.embed_subtitles:
                 postprocessors.append({"key": "FFmpegEmbedSubtitle"})
+
+        if opts.split_chapters or getattr(self.config, "split_chapters", False):
+            postprocessors.append({"key": "FFmpegSplitChapters"})
 
         if postprocessors:
             ydl_opts["postprocessors"] = postprocessors
