@@ -472,6 +472,8 @@ class HistoryScreen(Screen):
                         filesize=int(row.get("Size", "0") or 0),
                         checksum="",
                     )
+                    if row.get("Date"):
+                        entry.date = row["Date"]
                     self._app.history.add(entry)
                     count += 1
             self.refresh_table()
