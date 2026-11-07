@@ -74,6 +74,14 @@ cd yank && .venv/bin/python -m yank
 4. **Download** — watch real-time progress with speed and ETA
 5. **Done** — file saved, logged to history
 
+Playlist mode expands the playlist before queuing; use the playlist-items field
+to select entries (for example, `2-5,7`). Section ranges use yt-dlp syntax such
+as `*00:01:00-00:02:00`.
+
+Watch-folder files are processed in the background. URLs that cannot be queued
+remain in the file for a later attempt. Restoring a backup takes effect when
+you confirm quit; restart the application to load it.
+
 ### Keyboard shortcuts
 
 | Key | Action |
