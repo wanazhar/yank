@@ -336,11 +336,13 @@ class URLInputScreen(Screen):
         )
         from yank.screens.format_select import FormatSelectScreen
 
+        expanded_playlist = False
         if playlist_mode and len(urls) == 1:
             try:
                 entries = extract_playlist_entries(urls[0], timeout=FORMAT_TIMEOUT)
                 if entries:
                     urls = [u for u, _ in entries]
+                    expanded_playlist = True
             except Exception:
                 pass
 
@@ -374,6 +376,8 @@ class URLInputScreen(Screen):
 
         def _push() -> None:
             self.query_one("#url-error", Label).update("")
-            self.app.push_screen(FormatSelectScreen(meta=meta, remaining_urls=remaining))
+            self.app.push_screen(FormatSelectScreen(
+                meta=meta, remaining_urls=remaining, playlist_mode=expanded_playlist
+            ))
 
         self.app.call_from_thread(_push)

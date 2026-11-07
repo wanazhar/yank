@@ -94,6 +94,7 @@ class OptionsScreen(Screen):
         selected_format: FormatInfo,
         *,
         remaining_urls: list[str] | None = None,
+        playlist_mode: bool = False,
         name: str | None = None,
         id: str | None = None,
         classes: str | None = None,
@@ -102,6 +103,7 @@ class OptionsScreen(Screen):
         self.meta = meta
         self.selected_format = selected_format
         self.remaining_urls = remaining_urls or []
+        self.playlist_mode = playlist_mode
 
     def compose(self) -> ComposeResult:
         cfg = self._app.config
@@ -221,7 +223,7 @@ class OptionsScreen(Screen):
 
             yield Label("Playlist items (e.g. 1-5,7)", classes="opt-label")
             yield Input(
-                value="",
+                value=cfg.playlist_items,
                 placeholder="1-5,7",
                 id="opt-playlist-items",
             )
@@ -424,6 +426,26 @@ class OptionsScreen(Screen):
             selected_format=self.selected_format,
         )
 
+    def _selected_playlist_urls(self, opts: DownloadOptions) -> list[str] | None:
+        urls = [self.meta.url, *self.remaining_urls]
+        if not self.playlist_mode or not opts.playlist_items:
+            return urls
+        from yt_dlp.utils import PlaylistEntries
+
+        try:
+            entries = PlaylistEntries(None, {"entries": urls})
+            selected = [
+                url for part in entries.parse_playlist_items(opts.playlist_items)
+                for _, url in entries[part]
+            ]
+        except ValueError as exc:
+            self.query_one("#opt-error", Label).update(f"Invalid playlist items: {exc}")
+            return None
+        if not selected:
+            self.query_one("#opt-error", Label).update("Playlist selection is empty.")
+            return None
+        return selected
+
     @on(Button.Pressed, "#btn-download")
     def on_download(self) -> None:
         self.action_start_download()
@@ -431,6 +453,18 @@ class OptionsScreen(Screen):
     def action_start_download(self) -> None:
         opts = self._build_options()
         if opts is None:
+            return
+        urls = self._selected_playlist_urls(opts)
+        if urls is None:
+            return
+        if urls[0] != self.meta.url:
+            try:
+                delay = max(0.0, float(self.query_one("#opt-schedule", Input).value.strip() or "0"))
+            except ValueError:
+                delay = 0.0
+            self._enqueue_remaining(urls, opts, start_first=True, delay=delay)
+            from yank.screens.queue import QueueScreen
+            self.app.push_screen(QueueScreen())
             return
         item = self._make_item(opts)
         qi = self._app.queue.add(item)
@@ -453,8 +487,8 @@ class OptionsScreen(Screen):
         self._app.refresh_status_bar()
 
         # Enqueue remaining batch URLs with same options (best effort async)
-        if self.remaining_urls:
-            self._enqueue_remaining(list(self.remaining_urls), opts)
+        if len(urls) > 1:
+            self._enqueue_remaining(urls[1:], opts)
 
         from yank.screens.download import DownloadScreen
 
@@ -465,18 +499,28 @@ class OptionsScreen(Screen):
         opts = self._build_options()
         if opts is None:
             return
+        urls = self._selected_playlist_urls(opts)
+        if urls is None:
+            return
+        if urls[0] != self.meta.url:
+            self._enqueue_remaining(urls, opts)
+            from yank.screens.queue import QueueScreen
+            self.app.push_screen(QueueScreen())
+            return
         item = self._make_item(opts)
         self._app.queue.add(item)
         self._app.refresh_status_bar()
-        if self.remaining_urls:
-            self._enqueue_remaining(list(self.remaining_urls), opts)
+        if len(urls) > 1:
+            self._enqueue_remaining(urls[1:], opts)
         self.notify(f"Added to queue: {item.title[:40]}", severity="information")
         from yank.screens.queue import QueueScreen
 
         self.app.push_screen(QueueScreen())
 
     @work(thread=True)
-    def _enqueue_remaining(self, urls: list[str], opts: DownloadOptions) -> None:
+    def _enqueue_remaining(
+        self, urls: list[str], opts: DownloadOptions, *, start_first: bool = False, delay: float = 0.0
+    ) -> None:
         from yank.engine.formats import FormatExtractError, extract_formats, pick_best_format
 
         for url in urls:
@@ -533,11 +577,18 @@ class OptionsScreen(Screen):
                     selected_format=best,
                 )
 
-                def _add(it=item):
-                    self._app.queue.add(it)
+                def _add(it=item, start=start_first):
+                    qi = self._app.queue.add(it)
+                    if start and delay:
+                        import time
+                        qi.scheduled_at = time.time() + delay * 60
+                        self._app.queue._emit()
+                    elif start:
+                        self._app.manager.start(it.id)
                     self._app.refresh_status_bar()
 
                 self.app.call_from_thread(_add)
+                start_first = False
             except FormatExtractError as exc:
                 self.app.call_from_thread(
                     self.notify, f"Batch skip: {exc.message}", severity="warning"

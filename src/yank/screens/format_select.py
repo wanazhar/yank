@@ -98,6 +98,7 @@ class FormatSelectScreen(Screen):
         meta: VideoMeta,
         *,
         remaining_urls: list[str] | None = None,
+        playlist_mode: bool = False,
         name: str | None = None,
         id: str | None = None,
         classes: str | None = None,
@@ -105,6 +106,7 @@ class FormatSelectScreen(Screen):
         super().__init__(name=name, id=id, classes=classes)
         self.meta = meta
         self.remaining_urls = remaining_urls or []
+        self.playlist_mode = playlist_mode
         self._selected: FormatInfo | None = None
 
     def compose(self) -> ComposeResult:
@@ -201,6 +203,7 @@ class FormatSelectScreen(Screen):
                 meta=self.meta,
                 selected_format=fmt,
                 remaining_urls=self.remaining_urls,
+                playlist_mode=self.playlist_mode,
             )
         )
 
