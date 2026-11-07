@@ -541,7 +541,10 @@ class DownloadManager:
             if sb_mark.strip():
                 sponsor_args.extend(["--sponsorblock-mark", sb_mark.strip()])
             if len(sponsor_args) > 1:
-                sponsor_processors = yt_dlp.parse_options(sponsor_args).ydl_opts["postprocessors"]
+                sponsor_processors = [
+                    pp for pp in yt_dlp.parse_options(sponsor_args).ydl_opts["postprocessors"]
+                    if pp["key"] in ("SponsorBlock", "ModifyChapters")
+                ]
                 ydl_opts["postprocessors"] = sponsor_processors + postprocessors
             if sections := (opts.download_sections or getattr(self.config, "download_sections", "") or "").strip():
                 ydl_opts["download_ranges"] = yt_dlp.parse_options(
