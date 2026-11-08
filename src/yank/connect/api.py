@@ -355,8 +355,7 @@ def create_app(runtime: ConnectRuntime | None = None) -> FastAPI:
         require_auth(request, runtime)
 
         def stream() -> Any:
-            for chunk in hub.iter_sse(poll_s=2.0):
-                yield chunk
+            yield from hub.iter_sse(poll_s=2.0)
 
         return StreamingResponse(stream(), media_type="text/event-stream")
 
