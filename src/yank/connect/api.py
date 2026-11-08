@@ -356,8 +356,6 @@ def create_app(runtime: ConnectRuntime | None = None) -> FastAPI:
 
         def stream() -> Any:
             for chunk in hub.iter_sse(poll_s=2.0):
-                if request.is_disconnected:
-                    break
                 yield chunk
 
         return StreamingResponse(stream(), media_type="text/event-stream")

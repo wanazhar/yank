@@ -6,6 +6,7 @@ import hmac
 import secrets
 import time
 from hashlib import sha256
+from typing import Literal, TypedDict
 
 SESSION_COOKIE = "yank_connect_session"
 SESSION_MAX_AGE_S = 30 * 86400
@@ -40,7 +41,15 @@ def verify_session_value(value: str | None, secret: str) -> bool:
     return hmac.compare_digest(sig, expected)
 
 
-def session_cookie_kwargs(*, secure: bool) -> dict[str, object]:
+class SessionCookieKwargs(TypedDict):
+    httponly: bool
+    samesite: Literal["lax", "strict", "none"]
+    max_age: int
+    path: str
+    secure: bool
+
+
+def session_cookie_kwargs(*, secure: bool) -> SessionCookieKwargs:
     return {
         "httponly": True,
         "samesite": "lax",
