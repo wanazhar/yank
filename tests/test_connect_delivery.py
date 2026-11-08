@@ -33,6 +33,7 @@ def test_stream_rejects_outside_staging(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("yank.connect.paths.CONNECT_TOKEN_PATH", token_path)
     monkeypatch.setattr("yank.connect.auth.CONNECT_TOKEN_PATH", token_path)
     monkeypatch.setattr("yank.connect.paths.CONNECT_STAGING_DIR", staging)
+    monkeypatch.setattr("yank.connect.delivery.CONNECT_STAGING_DIR", staging)
     monkeypatch.setattr("yank.connect.runtime.CONNECT_STAGING_DIR", staging)
     monkeypatch.setattr(
         "yank.engine.updater.YtDlpManager.ensure_installed",
