@@ -14,7 +14,7 @@ from yank.connect.auth import load_or_create_token, reset_token
 from yank.connect.delivery import media_kind_for_path, resolve_completed_path
 from yank.connect.runtime import ConnectRuntime
 from yank.connect.session_auth import issue_session_value
-from yank.engine.downloader import DownloadItem, DownloadStatus
+from yank.engine.downloader import DownloadItem, DownloadOptions, DownloadStatus
 
 
 def test_media_kind() -> None:
@@ -47,6 +47,7 @@ def test_stream_rejects_outside_staging(tmp_path, monkeypatch) -> None:
         url="https://example.com",
         title="t",
         format_id="best",
+        options=DownloadOptions(),
         status=DownloadStatus.COMPLETED,
         file_path=str(outside),
     )

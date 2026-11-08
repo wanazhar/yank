@@ -38,6 +38,7 @@ async def _fit_check(width: int, height: int, *, herdr: bool) -> tuple[int, int,
     from yank.app import YankApp
 
     app = YankApp()
+    app.config.seen_welcome = True
     prev = os.environ.get("HERDR_ENV")
     if herdr:
         os.environ["HERDR_ENV"] = "1"
