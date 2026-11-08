@@ -13,6 +13,7 @@ from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
+from textual.events import Resize
 from textual.screen import Screen
 from textual.widgets import (
     Footer,
@@ -25,6 +26,12 @@ from yank.i18n import LocalizedButton as Button
 from yank.i18n import LocalizedLabel as Label
 from yank.logging import get_logger
 from yank.models.config import AppConfig, save_config
+from yank.viewport import (
+    DESKTOP_SETTINGS_LABELS,
+    PHONE_SETTINGS_LABELS,
+    apply_screen_viewport,
+    is_phone_canvas,
+)
 
 _logger = get_logger(__name__)
 
@@ -46,8 +53,13 @@ class SettingsScreen(Screen):
     SettingsScreen {
         layout: vertical;
     }
+    #set-body {
+        height: 1fr;
+        layout: vertical;
+    }
     #set-scroll {
         height: 1fr;
+        min-height: 1;
         padding: 1 2;
     }
     #set-title {
@@ -61,8 +73,8 @@ class SettingsScreen(Screen):
         height: 1;
     }
     #set-ytdlp-box {
-        margin-top: 2;
-        padding: 1;
+        margin-top: 1;
+        padding: 0 1;
         border: solid #a855f7 30%;
         height: auto;
         background: #0a0a0f;
@@ -79,15 +91,12 @@ class SettingsScreen(Screen):
     }
     #set-actions {
         height: auto;
-        padding: 1 2;
-        dock: bottom;
-    }
-    #set-actions Button {
-        margin-right: 1;
+        padding: 0 1 1 1;
+        width: 100%;
     }
     #set-status {
         height: auto;
-        padding: 0 2;
+        padding: 0 1;
         color: #22c55e;
     }
     #set-status.error {
@@ -98,14 +107,15 @@ class SettingsScreen(Screen):
     def compose(self) -> ComposeResult:
         cfg: AppConfig = self._app.config
         yield Header(show_clock=True)
-        with VerticalScroll(id="set-scroll"):
-            yield Label("Settings", id="set-title")
+        with Vertical(id="set-body"):
+            with VerticalScroll(id="set-scroll"):
+                yield Label("Settings", id="set-title")
 
-            yield Label("Default download directory", classes="set-label")
-            yield Input(value=cfg.download_dir, id="set-dir")
+                yield Label("Default download directory", classes="set-label")
+                yield Input(value=cfg.download_dir, id="set-dir")
 
-            yield Label("Default format preference", classes="set-label")
-            yield Select(
+                yield Label("Default format preference", classes="set-label")
+                yield Select(
                 [
                     ("Best available", "best"),
                     ("Best video+audio (prefer separate)", "best_video_audio"),
@@ -114,167 +124,186 @@ class SettingsScreen(Screen):
                 value=cfg.format_preference,
                 id="set-format-pref",
                 allow_blank=False,
-            )
+                )
 
-            yield Label("Max concurrent downloads (1-5)", classes="set-label")
-            yield Select(
+                yield Label("Max concurrent downloads (1-5)", classes="set-label")
+                yield Select(
                 [(str(i), str(i)) for i in range(1, 6)],
                 value=str(cfg.max_concurrent),
                 id="set-concurrent",
                 allow_blank=False,
-            )
+                )
 
-            yield Label("Default filename template", classes="set-label")
-            yield Input(value=cfg.filename_template, id="set-template")
+                yield Label("Default filename template", classes="set-label")
+                yield Input(value=cfg.filename_template, id="set-template")
 
-            yield Label("Default subtitle language", classes="set-label")
-            yield Input(value=cfg.default_subtitle_lang, id="set-sublang")
+                yield Label("Default subtitle language", classes="set-label")
+                yield Input(value=cfg.default_subtitle_lang, id="set-sublang")
 
-            yield Label("Proxy URL (e.g. http://127.0.0.1:8080)", classes="set-label")
-            yield Input(value=cfg.proxy, placeholder="http://proxy:port", id="set-proxy")
+                yield Label("Proxy URL (e.g. http://127.0.0.1:8080)", classes="set-label")
+                yield Input(value=cfg.proxy, placeholder="http://proxy:port", id="set-proxy")
 
-            yield Label(
+                yield Label(
                 "Cookies from browser (chrome/firefox/edge/brave/safari)", classes="set-label"
-            )
-            yield Input(value=cfg.cookies_browser, placeholder="chrome", id="set-cookies-browser")
+                )
+                yield Input(value=cfg.cookies_browser, placeholder="chrome", id="set-cookies-browser")
 
-            yield Label("Cookies file (Netscape cookies.txt)", classes="set-label")
-            yield Input(
+                yield Label("Cookies file (Netscape cookies.txt)", classes="set-label")
+                yield Input(
                 value=cfg.cookies_file, placeholder="/path/to/cookies.txt", id="set-cookies-file"
-            )
+                )
 
-            yield Label("Download archive file (skip already-downloaded)", classes="set-label")
-            yield Input(
+                yield Label("Download archive file (skip already-downloaded)", classes="set-label")
+                yield Input(
                 value=cfg.download_archive, placeholder="/path/to/archive.txt", id="set-archive"
-            )
+                )
 
-            yield Label("Rate limit (e.g. 1M, 500K)", classes="set-label")
-            yield Input(value=cfg.rate_limit, placeholder="1M", id="set-rate-limit")
+                yield Label("Rate limit (e.g. 1M, 500K)", classes="set-label")
+                yield Input(value=cfg.rate_limit, placeholder="1M", id="set-rate-limit")
 
-            yield Label("Retry count (0-10)", classes="set-label")
-            yield Input(value=str(cfg.retry_count), placeholder="3", id="set-retry-count")
+                yield Label("Retry count (0-10)", classes="set-label")
+                yield Input(value=str(cfg.retry_count), placeholder="3", id="set-retry-count")
 
-            yield Label("Split by chapters (default)", classes="set-label")
-            yield Select(
+                yield Label("Split by chapters (default)", classes="set-label")
+                yield Select(
                 [("Off", "false"), ("On", "true")],
                 value="true" if cfg.split_chapters else "false",
                 id="set-split",
                 allow_blank=False,
-            )
+                )
 
-            yield Label("Audio normalize (default)", classes="set-label")
-            yield Select(
+                yield Label("Audio normalize (default)", classes="set-label")
+                yield Select(
                 [("Off", "false"), ("On", "true")],
                 value="true" if cfg.audio_normalize else "false",
                 id="set-normalize",
                 allow_blank=False,
-            )
+                )
 
-            yield Label("Compact mode", classes="set-label")
-            yield Select(
+                yield Label("Compact mode", classes="set-label")
+                yield Select(
                 [("Off", "false"), ("On", "true")],
                 value="true" if cfg.compact_mode else "false",
                 id="set-compact",
                 allow_blank=False,
-            )
+                )
 
-            yield Label("High contrast", classes="set-label")
-            yield Select(
+                yield Label("High contrast", classes="set-label")
+                yield Select(
                 [("Off", "false"), ("On", "true")],
                 value="true" if cfg.high_contrast else "false",
                 id="set-contrast",
                 allow_blank=False,
-            )
+                )
 
-            yield Label("Concurrent fragments (1-16)", classes="set-label")
-            yield Input(value=str(cfg.concurrent_fragments), placeholder="4", id="set-fragments")
+                yield Label("Concurrent fragments (1-16)", classes="set-label")
+                yield Input(value=str(cfg.concurrent_fragments), placeholder="4", id="set-fragments")
 
-            yield Label("External downloader (aria2c, etc.)", classes="set-label")
-            yield Input(value=cfg.external_downloader, placeholder="aria2c", id="set-ext-dl")
+                yield Label("External downloader (aria2c, etc.)", classes="set-label")
+                yield Input(value=cfg.external_downloader, placeholder="aria2c", id="set-ext-dl")
 
-            yield Label("yt-dlp channel", classes="set-label")
-            yield Select(
+                yield Label("yt-dlp channel", classes="set-label")
+                yield Select(
                 [("Stable", "stable"), ("Nightly", "nightly")],
                 value=cfg.ytdlp_channel,
                 id="set-channel",
                 allow_blank=False,
-            )
+                )
 
-            yield Label("Geo bypass", classes="set-label")
-            yield Select(
+                yield Label("Geo bypass", classes="set-label")
+                yield Select(
                 [("Off", "false"), ("On", "true")],
                 value="true" if cfg.geo_bypass else "false",
                 id="set-geo",
                 allow_blank=False,
-            )
+                )
 
-            yield Label("Sleep interval between requests (seconds)", classes="set-label")
-            yield Input(value=str(cfg.sleep_interval), placeholder="0", id="set-sleep")
+                yield Label("Sleep interval between requests (seconds)", classes="set-label")
+                yield Input(value=str(cfg.sleep_interval), placeholder="0", id="set-sleep")
 
-            yield Label("SponsorBlock mark (comma categories)", classes="set-label")
-            yield Input(value=cfg.sponsorblock_mark, placeholder="sponsor,intro", id="set-sb-mark")
+                yield Label("SponsorBlock mark (comma categories)", classes="set-label")
+                yield Input(value=cfg.sponsorblock_mark, placeholder="sponsor,intro", id="set-sb-mark")
 
-            yield Label("Webhook URL (POST on completion)", classes="set-label")
-            yield Input(
+                yield Label("Webhook URL (POST on completion)", classes="set-label")
+                yield Input(
                 value=cfg.webhook_url, placeholder="https://example.com/hook", id="set-webhook"
-            )
+                )
 
-            yield Label("History retention days (0 = keep all)", classes="set-label")
-            yield Input(value=str(cfg.history_retention_days), placeholder="0", id="set-retention")
+                yield Label("History retention days (0 = keep all)", classes="set-label")
+                yield Input(value=str(cfg.history_retention_days), placeholder="0", id="set-retention")
 
-            yield Label("Language (en, ...)", classes="set-label")
-            yield Input(value=cfg.language, placeholder="en", id="set-language")
+                yield Label("Language (en, ...)", classes="set-label")
+                yield Input(value=cfg.language, placeholder="en", id="set-language")
 
-            yield Button("Update yank itself", id="btn-self-update")
+                yield Button("Update yank itself", id="btn-self-update")
 
-            yield Label("Profile name", classes="set-label")
-            yield Input(value="", placeholder="work", id="set-profile-name")
-            with Horizontal():
-                yield Button("Save profile", id="btn-save-profile")
-                yield Button("Load profile", id="btn-load-profile")
+                yield Label("Profile name", classes="set-label")
+                yield Input(value="", placeholder="work", id="set-profile-name")
+                with Horizontal(id="set-profile-row", classes="set-profile-row"):
+                    yield Button("Save profile", id="btn-save-profile")
+                    yield Button("Load profile", id="btn-load-profile")
 
-            yield Label("yt-dlp update check", classes="set-label")
-            yield Select(
-                [
-                    ("Always (on startup if >1h)", "always"),
-                    ("Ask / check daily", "ask"),
-                    ("Never", "never"),
-                ],
-                value=cfg.update_check_interval,
-                id="set-update-interval",
-                allow_blank=False,
-            )
+                yield Label("yt-dlp update check", classes="set-label")
+                yield Select(
+                    [
+                        ("Always (on startup if >1h)", "always"),
+                        ("Ask / check daily", "ask"),
+                        ("Never", "never"),
+                    ],
+                    value=cfg.update_check_interval,
+                    id="set-update-interval",
+                    allow_blank=False,
+                )
 
-            yield Label("Theme", classes="set-label")
-            yield Select(
-                [("Dark", "dark"), ("Light", "light")],
-                value=cfg.theme,
-                id="set-theme",
-                allow_blank=False,
-            )
+                yield Label("Theme", classes="set-label")
+                yield Select(
+                    [("Dark", "dark"), ("Light", "light")],
+                    value=cfg.theme,
+                    id="set-theme",
+                    allow_blank=False,
+                )
 
-            with Vertical(id="set-ytdlp-box"):
-                yield Label("yt-dlp management", classes="set-label")
-                yield Label("Version: …", id="set-ytdlp-ver")
-                yield Label("", id="set-ytdlp-msg")
-                with Horizontal():
-                    yield Button("Check for updates", id="btn-check-update")
-                    yield Button("Update yt-dlp", id="btn-update", variant="primary")
-                    yield Button("Install yt-dlp", id="btn-install")
+                with Vertical(id="set-ytdlp-box"):
+                    yield Label("yt-dlp", classes="set-label")
+                    yield Label("Version: …", id="set-ytdlp-ver")
+                    yield Label("", id="set-ytdlp-msg")
+                    with Horizontal(classes="set-ytdlp-row"):
+                        yield Button("Check for updates", id="btn-check-update")
+                        yield Button("Update yt-dlp", id="btn-update", variant="primary")
+                        yield Button("Install yt-dlp", id="btn-install")
 
-        yield Label("", id="set-status")
-        with Horizontal(id="set-actions"):
-            yield Button("Save", variant="primary", id="btn-save")
-            yield Button("View log", id="btn-log")
-            yield Button("Health check", id="btn-health")
-            yield Button("Backup", id="btn-backup")
-            yield Button("Restore", id="btn-restore")
-            yield Button("Diagnostics", id="btn-diagnostics")
-            yield Button("Back", id="btn-back")
+            yield Label("", id="set-status")
+            with Vertical(id="set-actions"):
+                with Horizontal(classes="set-actions-row"):
+                    yield Button("Save", variant="primary", id="btn-save")
+                    yield Button("Back", id="btn-back")
+                    yield Button("View log", id="btn-log")
+                with Horizontal(classes="set-actions-row"):
+                    yield Button("Health check", id="btn-health")
+                    yield Button("Backup", id="btn-backup")
+                    yield Button("Restore", id="btn-restore")
+                    yield Button("Diagnostics", id="btn-diagnostics")
         yield Footer()
 
     def on_mount(self) -> None:
+        apply_screen_viewport(self)
+        self._apply_control_labels()
         self._refresh_ytdlp_version()
+
+    def on_resize(self, _event: Resize) -> None:
+        apply_screen_viewport(self)
+        self._apply_control_labels()
+
+    def _apply_control_labels(self) -> None:
+        """Short button captions on phone canvas so rows stay one line tall."""
+        size = self.app.size
+        phone = is_phone_canvas(size.width, size.height) or "-vp-phone" in self.classes
+        labels = PHONE_SETTINGS_LABELS if phone else DESKTOP_SETTINGS_LABELS
+        for btn_id, text in labels.items():
+            try:
+                self.query_one(f"#{btn_id}", Button).label = text
+            except Exception:
+                pass
 
     def _refresh_ytdlp_version(self) -> None:
         mgr = self._app.ytdlp

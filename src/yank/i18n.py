@@ -66,6 +66,8 @@ class LocalizedButton(_Button):
     """Translate button captions using the active locale."""
 
     def __init__(self, label=None, *args, **kwargs):
+        kwargs.setdefault("flat", True)
+        kwargs.setdefault("compact", True)
         super().__init__(t(label) if isinstance(label, str) else label, *args, **kwargs)
 
 

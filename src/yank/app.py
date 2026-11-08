@@ -280,6 +280,7 @@ class YankApp(App):
         )
         self.ytdlp = YtDlpManager(self.config)
         self._update_notice = ""
+        self._status_bar_refresh_timer = None
 
         self.services = AppServices(
             config=self.config,
@@ -343,6 +344,16 @@ class YankApp(App):
             notification=self._update_notice,
         )
 
+    def request_status_bar_refresh(self) -> None:
+        """Coalesce rapid progress updates into one bar refresh per tick."""
+        if self._status_bar_refresh_timer is not None:
+            return
+        self._status_bar_refresh_timer = self.set_timer(0.4, self._flush_status_bar_refresh)
+
+    def _flush_status_bar_refresh(self) -> None:
+        self._status_bar_refresh_timer = None
+        self.refresh_status_bar()
+
     # ── Startup ─────────────────────────────────────────────────────────────
 
     @work(thread=True)
@@ -396,9 +407,9 @@ class YankApp(App):
         self.queue.sync_from_manager(item)
         # UI widgets poll themselves; just refresh status occasionally
         try:
-            self.call_from_thread(self.refresh_status_bar)
+            self.call_from_thread(self.request_status_bar_refresh)
         except Exception:
-            _logger.debug("call_from_thread(refresh_status_bar) failed", exc_info=True)
+            _logger.debug("call_from_thread(request_status_bar_refresh) failed", exc_info=True)
 
     def _on_download_finished(self, item: DownloadItem) -> None:
         self.queue.sync_from_manager(item)
@@ -493,10 +504,11 @@ class YankApp(App):
 
     def _on_queue_change(self) -> None:
         try:
-            self.call_from_thread(self.refresh_status_bar)
+            self.call_from_thread(self.request_status_bar_refresh)
         except Exception:
             _logger.debug(
-                "call_from_thread(refresh_status_bar) failed from _on_queue_change", exc_info=True
+                "call_from_thread(request_status_bar_refresh) failed from _on_queue_change",
+                exc_info=True,
             )
 
     def action_open_queue_palette(self) -> None:
