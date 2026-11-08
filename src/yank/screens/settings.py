@@ -116,22 +116,22 @@ class SettingsScreen(Screen):
 
                 yield Label("Default format preference", classes="set-label")
                 yield Select(
-                [
-                    ("Best available", "best"),
-                    ("Best video+audio (prefer separate)", "best_video_audio"),
-                    ("Audio only", "audio_only"),
-                ],
-                value=cfg.format_preference,
-                id="set-format-pref",
-                allow_blank=False,
+                    [
+                        ("Best available", "best"),
+                        ("Best video+audio (prefer separate)", "best_video_audio"),
+                        ("Audio only", "audio_only"),
+                    ],
+                    value=cfg.format_preference,
+                    id="set-format-pref",
+                    allow_blank=False,
                 )
 
                 yield Label("Max concurrent downloads (1-5)", classes="set-label")
                 yield Select(
-                [(str(i), str(i)) for i in range(1, 6)],
-                value=str(cfg.max_concurrent),
-                id="set-concurrent",
-                allow_blank=False,
+                    [(str(i), str(i)) for i in range(1, 6)],
+                    value=str(cfg.max_concurrent),
+                    id="set-concurrent",
+                    allow_blank=False,
                 )
 
                 yield Label("Default filename template", classes="set-label")
@@ -144,18 +144,22 @@ class SettingsScreen(Screen):
                 yield Input(value=cfg.proxy, placeholder="http://proxy:port", id="set-proxy")
 
                 yield Label(
-                "Cookies from browser (chrome/firefox/edge/brave/safari)", classes="set-label"
+                    "Cookies from browser (chrome/firefox/edge/brave/safari)", classes="set-label"
                 )
-                yield Input(value=cfg.cookies_browser, placeholder="chrome", id="set-cookies-browser")
+                yield Input(
+                    value=cfg.cookies_browser, placeholder="chrome", id="set-cookies-browser"
+                )
 
                 yield Label("Cookies file (Netscape cookies.txt)", classes="set-label")
                 yield Input(
-                value=cfg.cookies_file, placeholder="/path/to/cookies.txt", id="set-cookies-file"
+                    value=cfg.cookies_file,
+                    placeholder="/path/to/cookies.txt",
+                    id="set-cookies-file",
                 )
 
                 yield Label("Download archive file (skip already-downloaded)", classes="set-label")
                 yield Input(
-                value=cfg.download_archive, placeholder="/path/to/archive.txt", id="set-archive"
+                    value=cfg.download_archive, placeholder="/path/to/archive.txt", id="set-archive"
                 )
 
                 yield Label("Rate limit (e.g. 1M, 500K)", classes="set-label")
@@ -166,71 +170,77 @@ class SettingsScreen(Screen):
 
                 yield Label("Split by chapters (default)", classes="set-label")
                 yield Select(
-                [("Off", "false"), ("On", "true")],
-                value="true" if cfg.split_chapters else "false",
-                id="set-split",
-                allow_blank=False,
+                    [("Off", "false"), ("On", "true")],
+                    value="true" if cfg.split_chapters else "false",
+                    id="set-split",
+                    allow_blank=False,
                 )
 
                 yield Label("Audio normalize (default)", classes="set-label")
                 yield Select(
-                [("Off", "false"), ("On", "true")],
-                value="true" if cfg.audio_normalize else "false",
-                id="set-normalize",
-                allow_blank=False,
+                    [("Off", "false"), ("On", "true")],
+                    value="true" if cfg.audio_normalize else "false",
+                    id="set-normalize",
+                    allow_blank=False,
                 )
 
                 yield Label("Compact mode", classes="set-label")
                 yield Select(
-                [("Off", "false"), ("On", "true")],
-                value="true" if cfg.compact_mode else "false",
-                id="set-compact",
-                allow_blank=False,
+                    [("Off", "false"), ("On", "true")],
+                    value="true" if cfg.compact_mode else "false",
+                    id="set-compact",
+                    allow_blank=False,
                 )
 
                 yield Label("High contrast", classes="set-label")
                 yield Select(
-                [("Off", "false"), ("On", "true")],
-                value="true" if cfg.high_contrast else "false",
-                id="set-contrast",
-                allow_blank=False,
+                    [("Off", "false"), ("On", "true")],
+                    value="true" if cfg.high_contrast else "false",
+                    id="set-contrast",
+                    allow_blank=False,
                 )
 
                 yield Label("Concurrent fragments (1-16)", classes="set-label")
-                yield Input(value=str(cfg.concurrent_fragments), placeholder="4", id="set-fragments")
+                yield Input(
+                    value=str(cfg.concurrent_fragments), placeholder="4", id="set-fragments"
+                )
 
                 yield Label("External downloader (aria2c, etc.)", classes="set-label")
                 yield Input(value=cfg.external_downloader, placeholder="aria2c", id="set-ext-dl")
 
                 yield Label("yt-dlp channel", classes="set-label")
                 yield Select(
-                [("Stable", "stable"), ("Nightly", "nightly")],
-                value=cfg.ytdlp_channel,
-                id="set-channel",
-                allow_blank=False,
+                    [("Stable", "stable"), ("Nightly", "nightly")],
+                    value=cfg.ytdlp_channel,
+                    id="set-channel",
+                    allow_blank=False,
                 )
 
                 yield Label("Geo bypass", classes="set-label")
                 yield Select(
-                [("Off", "false"), ("On", "true")],
-                value="true" if cfg.geo_bypass else "false",
-                id="set-geo",
-                allow_blank=False,
+                    [("Off", "false"), ("On", "true")],
+                    value="true" if cfg.geo_bypass else "false",
+                    id="set-geo",
+                    allow_blank=False,
                 )
 
                 yield Label("Sleep interval between requests (seconds)", classes="set-label")
                 yield Input(value=str(cfg.sleep_interval), placeholder="0", id="set-sleep")
 
                 yield Label("SponsorBlock mark (comma categories)", classes="set-label")
-                yield Input(value=cfg.sponsorblock_mark, placeholder="sponsor,intro", id="set-sb-mark")
+                yield Input(
+                    value=cfg.sponsorblock_mark, placeholder="sponsor,intro", id="set-sb-mark"
+                )
 
                 yield Label("Webhook URL (POST on completion)", classes="set-label")
                 yield Input(
-                value=cfg.webhook_url, placeholder="https://example.com/hook", id="set-webhook"
+                    value=cfg.webhook_url, placeholder="https://example.com/hook", id="set-webhook"
                 )
 
                 yield Label("History retention days (0 = keep all)", classes="set-label")
-                yield Input(value=str(cfg.history_retention_days), placeholder="0", id="set-retention")
+                yield Input(
+                    value=str(cfg.history_retention_days), placeholder="0", id="set-retention"
+                )
 
                 yield Label("Language (en, ...)", classes="set-label")
                 yield Input(value=cfg.language, placeholder="en", id="set-language")

@@ -72,9 +72,7 @@ async def _fit_check(width: int, height: int, *, herdr: bool) -> tuple[int, int,
 def test_url_input_fits_termius_and_herdr_stty():
     import asyncio
 
-    body, box, btn_h, ok = asyncio.run(
-        _fit_check(TERMius_COLS, TERMius_ROWS, herdr=False)
-    )
+    body, box, btn_h, ok = asyncio.run(_fit_check(TERMius_COLS, TERMius_ROWS, herdr=False))
     assert ok, f"termius: box={box} body={body} btn_h={btn_h}"
     body, box, btn_h, ok = asyncio.run(_fit_check(HERDR_COLS, HERDR_ROWS, herdr=True))
     assert ok, f"herdr: box={box} body={body} btn_h={btn_h}"

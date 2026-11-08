@@ -113,6 +113,37 @@ object mapping English label and button text to translated text in
 `~/.config/yank/locales/<language>.json`. New screens use the selected language;
 restart to refresh screens already open. Missing translations fall back to English.
 
+## Yank Connect (monorepo web + API)
+
+Use your phone or another device on Tailscale/LAN to queue downloads. **Nothing writes to the TUI `download_dir`** — Connect uses isolated staging (`~/.local/share/yank/connect/downloads`), its own queue/history under `~/.local/share/yank/connect/`, and tears that staging down on `yank connect stop`.
+
+- **Play** — completed video/audio jobs stream in the Queue page (`/api/downloads/{id}/stream`) to your browser or phone.
+- **Save to device** — downloads the file to **this device** and removes the server copy from staging (default).
+
+```bash
+uv sync
+
+# Build the PWA UI (once per UI change)
+cd web && npm install && npm run build && cd ..
+
+# Start server in background (auto-assigns port from 8787; prints URLs + token)
+uv run yank connect
+
+uv run yank connect status
+uv run yank connect stop    # cancels queue and clears connect staging
+```
+
+Foreground / fixed port: `uv run yank connect start -f --port 8787`
+
+Open the printed URL (magic `?pair=` link or paste the **API token**), then paste a URL and pick a format. When a job completes, **Play** in the browser or **Save to device** on the Queue page.
+
+Development UI against a running API:
+
+```bash
+uv run yank connect start -f
+cd web && npm run dev   # optional; set token in UI, API calls same host when served via connect
+```
+
 ## How it works
 
 yank wraps **yt-dlp** as a Python library (not subprocess). All format extraction, downloading, and metadata handling goes through `yt_dlp.YoutubeDL` with progress hooks. The TUI is built with **Textual** — a modern Python terminal UI framework.

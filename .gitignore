@@ -9,3 +9,9 @@ __pycache__/
 dist/
 build/
 .env
+.commandcode/
+.glass/
+node_modules/
+web/node_modules/
+web/.next/
+web/out/

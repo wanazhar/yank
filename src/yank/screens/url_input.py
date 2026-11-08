@@ -4,9 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar, cast
 
-if TYPE_CHECKING:
-    from yank.app import YankApp
-
 import pyfiglet
 from textual import on, work
 from textual.app import ComposeResult
@@ -14,10 +11,14 @@ from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalGroup
 from textual.events import Resize
 from textual.screen import Screen
+from textual.timer import Timer
 from textual.widgets import Footer, Header, Input, Static, TextArea
 
 from yank.constants import FORMAT_TIMEOUT
 from yank.engine.formats import detect_platform, is_valid_url
+from yank.i18n import LocalizedButton as Button
+from yank.i18n import LocalizedCheckbox as Checkbox
+from yank.i18n import LocalizedLabel as Label
 from yank.viewport import (
     apply_screen_viewport,
     figlet_yank,
@@ -30,9 +31,9 @@ from yank.viewport import (
     sync_fit_tier_classes,
     wordmark_line,
 )
-from yank.i18n import LocalizedButton as Button
-from yank.i18n import LocalizedCheckbox as Checkbox
-from yank.i18n import LocalizedLabel as Label
+
+if TYPE_CHECKING:
+    from yank.app import YankApp
 
 
 class URLInputScreen(Screen):
@@ -42,6 +43,8 @@ class URLInputScreen(Screen):
     def _app(self) -> YankApp:
         """Narrow ``self.app`` to the known ``YankApp`` subtype."""
         return cast("YankApp", self.app)
+
+    _resize_timer: Timer | None
 
     BINDINGS: ClassVar = [
         Binding("escape", "app.quit", "Quit", show=True),
@@ -278,7 +281,7 @@ class URLInputScreen(Screen):
         self._resize_timer = self.set_timer(0.12, self._apply_viewport_fit)
 
     def _apply_viewport_fit(self) -> None:
-        """Largest density tier that fits the live layout (58×30 Termius, 57×28 Herdr)."""
+        """Largest density tier that fits the live layout (58x30 Termius, 57x28 Herdr)."""
         self._resize_timer = None
         size = self.app.size
         size_key = (size.width, size.height)

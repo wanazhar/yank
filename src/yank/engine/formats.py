@@ -8,7 +8,9 @@ from typing import Any
 from urllib.parse import urlparse
 
 from yank.constants import ERROR_MSG_MAX_LEN
+from yank.engine.ytdlp_opts import apply_config_to_ydl_opts
 from yank.logging import get_logger
+from yank.models.config import AppConfig
 
 _logger = get_logger(__name__)
 
@@ -262,7 +264,13 @@ class FormatExtractError(Exception):
         self.message = message
 
 
-def extract_formats(url: str, *, timeout: int = 60) -> VideoMeta:
+def extract_formats(
+    url: str,
+    *,
+    timeout: int = 60,
+    config: AppConfig | None = None,
+    cookiefile: str | None = None,
+) -> VideoMeta:
     """
     Fetch available formats for *url* using yt-dlp as a library.
 
@@ -287,6 +295,10 @@ def extract_formats(url: str, *, timeout: int = 60) -> VideoMeta:
         "extract_flat": False,
         "socket_timeout": timeout,
     }
+    apply_config_to_ydl_opts(ydl_opts, config)
+    if cookiefile and cookiefile.strip():
+        ydl_opts["cookiefile"] = cookiefile.strip()
+        ydl_opts.pop("cookiesfrombrowser", None)
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -460,7 +472,18 @@ def _humanize_ytdlp_error(raw: str) -> str:
     if "http error 403" in lower or "forbidden" in lower:
         return "Access forbidden (403). The video may be region-locked or restricted."
     if "private video" in lower or "login required" in lower or "sign in" in lower:
-        return "This video is private or requires login."
+        return (
+            "YouTube blocked this request or the video needs login. "
+            "If the video is public, set cookies in Settings "
+            "(cookies from browser, e.g. chrome or firefox) and try again."
+        )
+    if "confirm your age" in lower or "age restricted" in lower:
+        return "Age-restricted video — add browser cookies in Settings and try again."
+    if "bot" in lower and "youtube" in lower:
+        return (
+            "YouTube bot check failed. Add browser cookies in Settings "
+            "(cookies_browser = chrome/firefox) on the server running yank."
+        )
     if "unsupported url" in lower:
         return "This URL is not supported by yt-dlp."
     if "timed out" in lower or "timeout" in lower:

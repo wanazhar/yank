@@ -1,0 +1,17 @@
+{
+  "name": "Yank Connect",
+  "short_name": "Yank",
+  "description": "Paste a URL, pick a format, download to your device.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c0d14",
+  "theme_color": "#5ac8fa",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

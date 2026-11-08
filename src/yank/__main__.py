@@ -4,11 +4,10 @@ from __future__ import annotations
 
 
 def main() -> None:
-    """Launch the yank Textual application."""
-    from yank.app import YankApp
+    """Launch the yank CLI (TUI or ``yank connect``)."""
+    from yank.cli import main as cli_main
 
-    app = YankApp()
-    app.run()
+    cli_main()
 
 
 if __name__ == "__main__":

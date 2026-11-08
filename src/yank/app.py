@@ -12,6 +12,7 @@ from textual.command import DiscoveryHit, Hit, Hits, Provider
 from textual.containers import Horizontal, Vertical
 from textual.events import Key
 from textual.screen import ModalScreen
+from textual.timer import Timer
 from textual.widgets import TextArea
 
 from yank.engine.downloader import DownloadItem, DownloadManager, DownloadStatus
@@ -249,6 +250,7 @@ class YankApp(App):
     services: AppServices
     _status_bar: StatusBar | None
     _update_notice: str
+    _status_bar_refresh_timer: Timer | None
 
     def __init__(self) -> None:
         super().__init__()

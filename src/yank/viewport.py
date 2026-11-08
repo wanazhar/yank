@@ -1,8 +1,8 @@
 """Fit the standard URL screen into fixed Termius / Herdr pane sizes (no scrollbars).
 
 Validated canvas sizes (``stty``):
-- Termius SSH: 58×30
-- Herdr pane on the same phone: 57×28
+- Termius SSH: 58x30
+- Herdr pane on the same phone: 57x28
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from functools import lru_cache
 from typing import TYPE_CHECKING
 
 import pyfiglet
+from textual.dom import DOMNode
 
 if TYPE_CHECKING:
     from textual.screen import Screen
@@ -51,9 +52,7 @@ def content_body_rows(term_height: int) -> int:
     return max(8, term_height - SCREEN_CHROME_ROWS)
 
 
-def logo_font_for_tier(
-    tier: int, width: int, *, phone: bool, herdr: bool = False
-) -> str | None:
+def logo_font_for_tier(tier: int, width: int, *, phone: bool, herdr: bool = False) -> str | None:
     """ASCII font for density tier; ``None`` uses a one-line wordmark on phone/Herdr."""
     if tier <= 0:
         return None
@@ -112,14 +111,14 @@ def all_fit_tier_classes() -> list[str]:
     return [fit_tier_class(t) for t in range(4)]
 
 
-def sync_fit_tier_classes(node, tier: int) -> None:
+def sync_fit_tier_classes(node: DOMNode, tier: int) -> None:
     """Set exactly one ``-vf-N`` class on a DOM node."""
     mapping = {name: name == fit_tier_class(tier) for name in all_fit_tier_classes()}
     node.update_classes(mapping, animate=False)
 
 
 def phone_button_labels(batch_mode: bool) -> dict[str, str]:
-    """Short labels so three buttons stay on one row at 57–58 columns."""
+    """Short labels so three buttons stay on one row at 57-58 columns."""
     return {
         "btn-continue": "Continue",
         "btn-batch": "Single" if batch_mode else "Batch",

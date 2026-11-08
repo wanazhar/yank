@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 228 18% 9%;
+    --foreground: 210 18% 96%;
+    --card: 225 16% 13%;
+    --card-foreground: 210 18% 96%;
+    --muted: 225 14% 17%;
+    --muted-foreground: 215 10% 58%;
+    --border: 220 12% 22%;
+    --primary: 204 90% 58%;
+    --primary-foreground: 228 20% 10%;
+    --accent: 204 90% 58%;
+    --accent-foreground: 228 20% 10%;
+    --destructive: 0 65% 55%;
+    --radius: 0.875rem;
+
+    /* Liquid Glass: floating chrome only (Apple HIG — not on content cards) */
+    --chrome-blur: 20px;
+    --chrome-fill: 225 20% 22% / 0.65;
+    --chrome-border: 0 0% 100% / 0.1;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "ss01", "cv01";
+  }
+}
+
+@layer utilities {
+  .glass-chrome {
+    background: hsl(var(--chrome-fill));
+    -webkit-backdrop-filter: blur(var(--chrome-blur)) saturate(120%);
+    backdrop-filter: blur(var(--chrome-blur)) saturate(120%);
+    border: 1px solid hsl(var(--chrome-border));
+    box-shadow:
+      0 1px 0 hsl(0 0% 100% / 0.06) inset,
+      0 8px 32px hsl(228 40% 4% / 0.35);
+  }
+
+  .glass-header {
+    border-radius: 1.125rem;
+  }
+
+  .glass-nav {
+    border-radius: 9999px;
+    padding: 3px;
+    background: hsl(225 18% 16% / 0.85);
+    -webkit-backdrop-filter: blur(16px) saturate(120%);
+    backdrop-filter: blur(16px) saturate(120%);
+    border: 1px solid hsl(0 0% 100% / 0.08);
+  }
+
+  .glass-nav-active {
+    background: hsl(var(--foreground));
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 1px 2px hsl(228 40% 4% / 0.2);
+  }
+
+  .panel {
+    @apply rounded-[var(--radius)] border border-border bg-card text-card-foreground;
+    box-shadow: 0 1px 0 hsl(0 0% 100% / 0.03) inset;
+  }
+
+  .field {
+    @apply bg-muted text-foreground;
+    border: 1px solid hsl(var(--border));
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .glass-chrome,
+    .glass-nav {
+      background: hsl(var(--card));
+    }
+  }
+}
